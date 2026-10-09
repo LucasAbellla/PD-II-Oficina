@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  ATTENDANT
+}
+
+enum OrderStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  DELIVERED
+  CANCELED
+}
+
+model User {
+  id           String         @id @default(uuid())
+  name         String
+  email        String         @unique
+  passwordHash String
+  role         Role           @default(ATTENDANT)
+  createdAt    DateTime       @default(now())
+  orders       ServiceOrder[]
+}
+
+model Customer {
+  id        String    @id @default(uuid())
+  name      String
+  document  String?
+  phone     String?
+  email     String?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  vehicles  Vehicle[]
+
+  @@index([name])
+}
+
+model Vehicle {
+  id         String         @id @default(uuid())
+  plate      String         @unique
+  brand      String
+  model      String
+  year       Int?
+  color      String?
+  customerId String
+  customer   Customer       @relation(fields: [customerId], references: [id])
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  orders     ServiceOrder[]
+
+  @@index([customerId])
+}
+
+model ServiceOrder {
+  id          String        @id @default(uuid())
+  number      Int           @unique @default(autoincrement())
+  vehicleId   String
+  vehicle     Vehicle       @relation(fields: [vehicleId], references: [id])
+  status      OrderStatus   @default(OPEN)
+  description String
+  mileageIn   Int?
+  openedAt    DateTime      @default(now())
+  closedAt    DateTime?
+  createdById String
+  createdBy   User          @relation(fields: [createdById], references: [id])
+  items       ServiceItem[]
+
+  @@index([vehicleId])
+  @@index([status])
+}
+
+model ServiceItem {
+  id          String       @id @default(uuid())
+  orderId     String
+  order       ServiceOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  description String
+  notes       String?
+  performedAt DateTime     @default(now())
+
+  @@index([orderId])
+}
