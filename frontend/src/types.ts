@@ -9,6 +9,8 @@ export const STATUS_LABEL: Record<OrderStatus, string> = {
   CANCELED: 'Cancelada',
 };
 
+export type StatusSummary = Record<OrderStatus, number>;
+
 export interface User { id: string; name: string; email: string; role: Role }
 export interface Paged<T> { data: T[]; meta: { page: number; pageSize: number; total: number; totalPages: number } }
 
@@ -16,13 +18,14 @@ export interface Customer {
   id: string; name: string; document?: string | null; phone?: string | null;
   email?: string | null; notes?: string | null; _count?: { vehicles: number };
 }
+export interface CustomerDetail extends Customer { vehicles: Vehicle[] }
 export interface Vehicle {
   id: string; plate: string; brand: string; model: string; year?: number | null;
   color?: string | null; customerId: string; customer?: { id: string; name: string };
 }
 export interface ServiceItem { id: string; description: string; notes?: string | null; performedAt: string }
 export interface OrderSummary {
-  id: string; number: number; status: OrderStatus; description: string; openedAt: string;
+  id: string; number: number; status: OrderStatus; description: string; openedAt: string; mileageIn?: number | null;
   vehicle: { id: string; plate: string; brand: string; model: string; customer: { name: string } };
 }
 export interface OrderDetail {
@@ -33,5 +36,8 @@ export interface OrderDetail {
 }
 export interface VehicleHistory {
   vehicle: Vehicle & { customer: Customer };
-  orders: { id: string; number: number; status: OrderStatus; description: string; openedAt: string; items: ServiceItem[] }[];
+  orders: {
+    id: string; number: number; status: OrderStatus; description: string; openedAt: string;
+    closedAt?: string | null; mileageIn?: number | null; items: ServiceItem[];
+  }[];
 }
