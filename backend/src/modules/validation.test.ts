@@ -12,7 +12,7 @@ import { vehicleSchema } from './vehicles/vehicles.schema.js';
 const customerId = '123e4567-e89b-12d3-a456-426614174000';
 
 describe('validação e normalização do MVP', () => {
-  it('normaliza campos de cliente e remove opcionais vazios', () => {
+  it('normaliza campos de cliente e transforma opcionais vazios em null', () => {
     expect(
       customerSchema.parse({
         name: '  Maria da Silva  ',
@@ -21,7 +21,14 @@ describe('validação e normalização do MVP', () => {
         email: '',
         notes: '',
       }),
-    ).toEqual({ name: 'Maria da Silva', phone: '(51) 99999-0000', document: undefined, email: undefined, notes: undefined });
+    ).toEqual({ name: 'Maria da Silva', phone: '(51) 99999-0000', document: null, email: null, notes: null });
+    expect(() => customerSchema.parse({ name: 'Maria', email: 'invalido' })).toThrow();
+  });
+
+  it('permite limpar ano e cor do veículo na edição', () => {
+    const parsed = vehicleSchema.parse({ plate: 'ABC1234', brand: 'Fiat', model: 'Uno', customerId, year: null, color: '' });
+    expect(parsed.year).toBeNull();
+    expect(parsed.color).toBeNull();
   });
 
   it('valida e normaliza placas antigas e Mercosul', () => {

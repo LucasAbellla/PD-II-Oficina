@@ -1,9 +1,10 @@
 import { z } from 'zod';
 
+// Campo vazio vira null (e não undefined) para que a edição consiga limpar o valor no banco
 const optionalText = z
   .string()
   .trim()
-  .transform((v) => (v === '' ? undefined : v))
+  .transform((v) => (v === '' ? null : v))
   .optional();
 
 export const customerSchema = z.object({
@@ -13,8 +14,8 @@ export const customerSchema = z.object({
   email: z
     .string()
     .trim()
-    .transform((v) => (v === '' ? undefined : v))
-    .pipe(z.string().email('E-mail inválido').optional())
+    .transform((v) => (v === '' ? null : v))
+    .pipe(z.string().email('E-mail inválido').nullable())
     .optional(),
   notes: optionalText,
 });
