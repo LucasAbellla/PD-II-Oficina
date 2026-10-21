@@ -1,79 +1,77 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
+import CustomerForm from '../components/CustomerForm';
+import { useFeedback } from '../components/Feedback';
+import Icon from '../components/Icon';
+import Modal from '../components/Modal';
+import { useDebounce } from '../hooks/useDebounce';
 import type { Customer, Paged } from '../types';
 
-const empty = { name: '', document: '', phone: '', email: '', notes: '' };
-
 export default function CustomersPage() {
-  const [items, setItems] = useState<Customer[]>([]);
+  const navigate = useNavigate();
+  const { toast } = useFeedback();
+  const [items, setItems] = useState<Customer[] | null>(null);
   const [search, setSearch] = useState('');
-  const [form, setForm] = useState(empty);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
+  const debounced = useDebounce(search.trim());
 
   const load = useCallback(async () => {
     try {
-      const res = await api<Paged<Customer>>(`/customers?pageSize=100&search=${encodeURIComponent(search)}`);
+      const res = await api<Paged<Customer>>(`/customers?pageSize=100&search=${encodeURIComponent(debounced)}`);
       setItems(res.data);
     } catch (e) {
       setError(errorMessage(e));
     }
-  }, [search]);
+  }, [debounced]);
 
   useEffect(() => { void load(); }, [load]);
 
-  const set = (k: keyof typeof empty) => (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value });
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError('');
-    try {
-      await api(editingId ? `/customers/${editingId}` : '/customers', { method: editingId ? 'PUT' : 'POST', body: form });
-      setForm(empty);
-      setEditingId(null);
-      await load();
-    } catch (err) {
-      setError(errorMessage(err));
-    }
-  };
-
-  const edit = (c: Customer) => {
-    setEditingId(c.id);
-    setForm({ name: c.name, document: c.document ?? '', phone: c.phone ?? '', email: c.email ?? '', notes: c.notes ?? '' });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   return (
     <>
-      <h2>Clientes</h2>
-      <form className="card grid" onSubmit={submit}>
-        <label>Nome *<input value={form.name} onChange={set('name')} required /></label>
-        <label>Telefone<input value={form.phone} onChange={set('phone')} /></label>
-        <label>E-mail<input type="email" value={form.email} onChange={set('email')} /></label>
-        <label>CPF/CNPJ<input value={form.document} onChange={set('document')} /></label>
-        <label className="wide">Observações<input value={form.notes} onChange={set('notes')} /></label>
-        <div className="actions wide">
-          <button>{editingId ? 'Salvar alterações' : 'Cadastrar cliente'}</button>
-          {editingId && <button type="button" className="secondary" onClick={() => { setEditingId(null); setForm(empty); }}>Cancelar</button>}
-        </div>
-      </form>
+      <div className="page-header">
+        <h2>Clientes</h2>
+        <button className="primary" onClick={() => setCreating(true)}><Icon name="plus" /> Novo cliente</button>
+      </div>
+      <div className="search-box">
+        <Icon name="search" />
+        <input placeholder="Buscar por nome, telefone ou placa…" value={search} onChange={(e) => setSearch(e.target.value)} />
+      </div>
       {error && <p className="error">{error}</p>}
 
-      <input className="search" placeholder="Buscar por nome, telefone ou placa…" value={search} onChange={(e) => setSearch(e.target.value)} />
-      <div className="table-wrap">
-        <table>
-          <thead><tr><th>Nome</th><th>Telefone</th><th>E-mail</th><th>Veículos</th><th /></tr></thead>
-          <tbody>
-            {items.map((c) => (
-              <tr key={c.id}>
-                <td>{c.name}</td><td>{c.phone}</td><td>{c.email}</td><td>{c._count?.vehicles ?? 0}</td>
-                <td><button className="link" onClick={() => edit(c)}>Editar</button></td>
-              </tr>
-            ))}
-            {items.length === 0 && <tr><td colSpan={5} className="muted">Nenhum cliente encontrado.</td></tr>}
-          </tbody>
-        </table>
-      </div>
+      {items === null ? <p className="loading">Carregando…</p> : items.length === 0 ? (
+        <div className="empty">
+          <Icon name="users" size={32} />
+          <p>{search ? 'Nenhum cliente encontrado para essa busca.' : 'Nenhum cliente cadastrado ainda.'}</p>
+          <button className="primary" onClick={() => setCreating(true)}><Icon name="plus" /> Cadastrar cliente</button>
+        </div>
+      ) : (
+        <div className="table-wrap">
+          <table className="clickable">
+            <thead><tr><th>Nome</th><th>Telefone</th><th>E-mail</th><th>Veículos</th></tr></thead>
+            <tbody>
+              {items.map((c) => (
+                <tr key={c.id} onClick={() => navigate(`/clientes/${c.id}`)}>
+                  <td><Link to={`/clientes/${c.id}`} onClick={(e) => e.stopPropagation()}><strong>{c.name}</strong></Link></td>
+                  <td>{c.phone ?? '—'}</td>
+                  <td>{c.email ?? '—'}</td>
+                  <td>{c._count?.vehicles ?? 0}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {creating && (
+        <Modal title="Novo cliente" onClose={() => setCreating(false)}>
+          <CustomerForm
+            onCancel={() => setCreating(false)}
+            onSaved={(c) => { toast(`${c.name} cadastrado(a). Agora cadastre o veículo.`); navigate(`/clientes/${c.id}?novoVeiculo=1`); }}
+          />
+        </Modal>
+      )}
     </>
   );
 }

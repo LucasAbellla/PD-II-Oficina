@@ -1,96 +1,87 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
-import type { Customer, Paged, Vehicle } from '../types';
-
-const empty = { plate: '', brand: '', model: '', year: '', color: '', customerId: '' };
+import { useFeedback } from '../components/Feedback';
+import Icon from '../components/Icon';
+import Modal from '../components/Modal';
+import VehicleForm from '../components/VehicleForm';
+import { useDebounce } from '../hooks/useDebounce';
+import type { Paged, Vehicle } from '../types';
 
 export default function VehiclesPage() {
-  const [items, setItems] = useState<Vehicle[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const { toast } = useFeedback();
+  const [items, setItems] = useState<Vehicle[] | null>(null);
   const [search, setSearch] = useState('');
-  const [form, setForm] = useState(empty);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Vehicle | 'new' | null>(null);
   const [error, setError] = useState('');
+  const debounced = useDebounce(search.trim());
 
   const load = useCallback(async () => {
     try {
-      const res = await api<Paged<Vehicle>>(`/vehicles?pageSize=100&search=${encodeURIComponent(search)}`);
+      const res = await api<Paged<Vehicle>>(`/vehicles?pageSize=100&search=${encodeURIComponent(debounced)}`);
       setItems(res.data);
     } catch (e) {
       setError(errorMessage(e));
     }
-  }, [search]);
+  }, [debounced]);
 
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => {
-    api<Paged<Customer>>('/customers?pageSize=100').then((r) => setCustomers(r.data)).catch(() => undefined);
-  }, []);
 
-  const set = (k: keyof typeof empty) => (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value });
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError('');
-    const body = { ...form, year: form.year === '' ? null : Number(form.year) };
-    try {
-      await api(editingId ? `/vehicles/${editingId}` : '/vehicles', { method: editingId ? 'PUT' : 'POST', body });
-      setForm(empty);
-      setEditingId(null);
-      await load();
-    } catch (err) {
-      setError(errorMessage(err));
-    }
-  };
-
-  const edit = (v: Vehicle) => {
-    setEditingId(v.id);
-    setForm({ plate: v.plate, brand: v.brand, model: v.model, year: v.year?.toString() ?? '', color: v.color ?? '', customerId: v.customerId });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  const onSaved = (v: Vehicle) => {
+    const isNew = editing === 'new';
+    setEditing(null);
+    void load();
+    if (isNew) toast(`Veículo ${v.plate} cadastrado`, { action: { label: 'Abrir OS', to: `/os?nova=1&veiculo=${v.id}` } });
+    else toast('Veículo atualizado');
   };
 
   return (
     <>
-      <h2>Veículos</h2>
-      <form className="card grid" onSubmit={submit}>
-        <label>Cliente (proprietário) *
-          <select value={form.customerId} onChange={set('customerId')} required>
-            <option value="">Selecione…</option>
-            {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </label>
-        <label>Placa *<input value={form.plate} onChange={set('plate')} required maxLength={7} placeholder="ABC1D23" /></label>
-        <label>Marca *<input value={form.brand} onChange={set('brand')} required /></label>
-        <label>Modelo *<input value={form.model} onChange={set('model')} required /></label>
-        <label>Ano<input type="number" value={form.year} onChange={set('year')} /></label>
-        <label>Cor<input value={form.color} onChange={set('color')} /></label>
-        <div className="actions wide">
-          <button>{editingId ? 'Salvar alterações' : 'Cadastrar veículo'}</button>
-          {editingId && <button type="button" className="secondary" onClick={() => { setEditingId(null); setForm(empty); }}>Cancelar</button>}
-        </div>
-      </form>
+      <div className="page-header">
+        <h2>Veículos</h2>
+        <button className="primary" onClick={() => setEditing('new')}><Icon name="plus" /> Novo veículo</button>
+      </div>
+      <div className="search-box">
+        <Icon name="search" />
+        <input placeholder="Buscar por placa, marca, modelo ou cliente…" value={search} onChange={(e) => setSearch(e.target.value)} />
+      </div>
       {error && <p className="error">{error}</p>}
 
-      <input className="search" placeholder="Buscar por placa, marca, modelo ou cliente…" value={search} onChange={(e) => setSearch(e.target.value)} />
-      <div className="table-wrap">
-        <table>
-          <thead><tr><th>Placa</th><th>Veículo</th><th>Cliente</th><th /></tr></thead>
-          <tbody>
-            {items.map((v) => (
-              <tr key={v.id}>
-                <td><strong>{v.plate}</strong></td>
-                <td>{v.brand} {v.model} {v.year ?? ''}</td>
-                <td>{v.customer?.name}</td>
-                <td>
-                  <button className="link" onClick={() => edit(v)}>Editar</button>{' '}
-                  <Link to={`/veiculos/${v.id}/historico`}>Histórico</Link>
-                </td>
-              </tr>
-            ))}
-            {items.length === 0 && <tr><td colSpan={4} className="muted">Nenhum veículo encontrado.</td></tr>}
-          </tbody>
-        </table>
-      </div>
+      {items === null ? <p className="loading">Carregando…</p> : items.length === 0 ? (
+        <div className="empty">
+          <Icon name="car" size={32} />
+          <p>{search ? 'Nenhum veículo encontrado para essa busca.' : 'Nenhum veículo cadastrado ainda.'}</p>
+          <button className="primary" onClick={() => setEditing('new')}><Icon name="plus" /> Cadastrar veículo</button>
+        </div>
+      ) : (
+        <div className="table-wrap">
+          <table>
+            <thead><tr><th>Placa</th><th>Veículo</th><th>Proprietário</th><th className="right">Ações</th></tr></thead>
+            <tbody>
+              {items.map((v) => (
+                <tr key={v.id}>
+                  <td><span className="plate">{v.plate}</span></td>
+                  <td>{v.brand} {v.model} <span className="muted">{v.year ?? ''}</span></td>
+                  <td>{v.customer && <Link to={`/clientes/${v.customer.id}`}>{v.customer.name}</Link>}</td>
+                  <td>
+                    <div className="row-actions">
+                      <Link to={`/os?nova=1&veiculo=${v.id}`} className="button primary btn-sm">Abrir OS</Link>
+                      <Link to={`/veiculos/${v.id}/historico`} className="icon-btn" title="Histórico" aria-label={`Histórico de ${v.plate}`}><Icon name="history" /></Link>
+                      <button className="icon-btn" title="Editar" aria-label={`Editar ${v.plate}`} onClick={() => setEditing(v)}><Icon name="edit" /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {editing && (
+        <Modal title={editing === 'new' ? 'Novo veículo' : `Editar ${editing.plate}`} onClose={() => setEditing(null)}>
+          <VehicleForm vehicle={editing === 'new' ? undefined : editing} onCancel={() => setEditing(null)} onSaved={onSaved} />
+        </Modal>
+      )}
     </>
   );
 }
