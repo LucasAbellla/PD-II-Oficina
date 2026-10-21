@@ -20,6 +20,7 @@ export const orderListQuery = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
   status: z.enum(['OPEN', 'IN_PROGRESS', 'COMPLETED', 'DELIVERED', 'CANCELED']).optional(),
   vehicleId: z.string().uuid().optional(),
+  search: z.string().trim().optional(),
 });
 
 export const orderItemParams = z.object({ id: z.string().uuid(), itemId: z.string().uuid() });

@@ -16,6 +16,16 @@ export async function list(opts: z.infer<typeof orderListQuery>) {
   const where: Prisma.ServiceOrderWhereInput = {
     ...(opts.status ? { status: opts.status } : {}),
     ...(opts.vehicleId ? { vehicleId: opts.vehicleId } : {}),
+    ...(opts.search
+      ? {
+          OR: [
+            { description: { contains: opts.search, mode: 'insensitive' } },
+            { vehicle: { plate: { contains: opts.search.toUpperCase() } } },
+            { vehicle: { customer: { name: { contains: opts.search, mode: 'insensitive' } } } },
+            ...(/^\d+$/.test(opts.search) ? [{ number: Number(opts.search) }] : []),
+          ],
+        }
+      : {}),
   };
   const [data, total] = await Promise.all([
     prisma.serviceOrder.findMany({
@@ -28,6 +38,14 @@ export async function list(opts: z.infer<typeof orderListQuery>) {
     prisma.serviceOrder.count({ where }),
   ]);
   return { data, meta: pageMeta(opts.page, opts.pageSize, total) };
+}
+
+/** Quantidade de OS por status (usado nos filtros da tela de OS). */
+export async function summary() {
+  const groups = await prisma.serviceOrder.groupBy({ by: ['status'], _count: { _all: true } });
+  const counts: Record<OrderStatus, number> = { OPEN: 0, IN_PROGRESS: 0, COMPLETED: 0, DELIVERED: 0, CANCELED: 0 };
+  for (const g of groups) counts[g.status] = g._count._all;
+  return counts;
 }
 
 async function getRaw(id: string) {

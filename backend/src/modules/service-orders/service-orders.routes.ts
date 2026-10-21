@@ -17,6 +17,10 @@ serviceOrdersRouter.get(
   asyncHandler(async (req, res) => res.json(await service.list(orderListQuery.parse(req.query)))),
 );
 serviceOrdersRouter.get(
+  '/summary',
+  asyncHandler(async (_req, res) => res.json(await service.summary())),
+);
+serviceOrdersRouter.get(
   '/:id',
   asyncHandler(async (req, res) => res.json(await service.getById(idParam.parse(req.params).id))),
 );
