@@ -69,7 +69,8 @@ frontend/
 | GET/POST | /vehicles | Listar (busca) / cadastrar veículo | RF03, RF04 |
 | GET/PUT | /vehicles/:id | Consultar / editar veículo | RF04 |
 | GET | /vehicles/:id/history | Histórico de OS do veículo | RF08 |
-| GET/POST | /service-orders | Listar (filtro por status) / abrir OS | RF05 |
+| GET/POST | /service-orders | Listar (filtro por status e busca por nº, placa, cliente ou problema) / abrir OS | RF05 |
+| GET | /service-orders/summary | Quantidade de OS por status | RF07 |
 | GET | /service-orders/:id | Detalhe da OS | RF05 |
 | PATCH | /service-orders/:id/status | Alterar status (regras de transição) | RF07 |
 | POST/DELETE | /service-orders/:id/items | Registrar/remover serviço realizado | RF06 |
