@@ -32,7 +32,7 @@ export default function VehiclesPage() {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
-    const body = { ...form, year: form.year === '' ? undefined : Number(form.year) };
+    const body = { ...form, year: form.year === '' ? null : Number(form.year) };
     try {
       await api(editingId ? `/vehicles/${editingId}` : '/vehicles', { method: editingId ? 'PUT' : 'POST', body });
       setForm(empty);
