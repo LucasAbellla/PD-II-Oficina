@@ -1,8 +1,14 @@
 import { Router } from 'express';
-import { asyncHandler } from '../../lib/http.js';
+import { asyncHandler, idParam } from '../../lib/http.js';
 import { authenticate, requireRole } from '../../middlewares/auth.js';
 import { validateBody } from '../../middlewares/validate.js';
-import { createUserSchema, loginSchema } from './auth.schema.js';
+import {
+  changePasswordSchema,
+  createUserSchema,
+  loginSchema,
+  resetPasswordSchema,
+  updateUserSchema,
+} from './auth.schema.js';
 import * as service from './auth.service.js';
 
 export const authRouter = Router();
@@ -19,11 +25,41 @@ authRouter.get(
   asyncHandler(async (req, res) => res.json(await service.me(req.user!.id))),
 );
 
-// Somente ADMIN cria novos usuários (RNF03)
+// Qualquer usuário pode trocar a própria senha
+authRouter.patch(
+  '/me/password',
+  authenticate,
+  validateBody(changePasswordSchema),
+  asyncHandler(async (req, res) => {
+    await service.changePassword(req.user!.id, req.body);
+    res.status(204).end();
+  }),
+);
+
+// Gestão de usuários: somente ADMIN (RNF03)
+authRouter.use('/users', authenticate, requireRole('ADMIN'));
+
+authRouter.get(
+  '/users',
+  asyncHandler(async (_req, res) => res.json(await service.listUsers())),
+);
 authRouter.post(
   '/users',
-  authenticate,
-  requireRole('ADMIN'),
   validateBody(createUserSchema),
   asyncHandler(async (req, res) => res.status(201).json(await service.createUser(req.body))),
+);
+authRouter.put(
+  '/users/:id',
+  validateBody(updateUserSchema),
+  asyncHandler(async (req, res) =>
+    res.json(await service.updateUser(idParam.parse(req.params).id, req.body, req.user!.id)),
+  ),
+);
+authRouter.put(
+  '/users/:id/password',
+  validateBody(resetPasswordSchema),
+  asyncHandler(async (req, res) => {
+    await service.resetPassword(idParam.parse(req.params).id, req.body.password);
+    res.status(204).end();
+  }),
 );

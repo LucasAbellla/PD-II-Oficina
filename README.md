@@ -32,7 +32,8 @@ npm run dev                     # http://localhost:5173
 ```
 
 Login inicial (definido no `.env` do backend): `admin@oficina.local` / `admin12345`.
-**Troque a senha e o `JWT_SECRET` antes de qualquer uso real.**
+**Troque a senha (ícone de chave no menu, "Alterar senha") e o `JWT_SECRET` antes de qualquer uso real.**
+Os logins dos funcionários são criados pelo ADMIN na tela **Usuários**.
 
 Testes: `cd backend && npm test` · Verificação de tipos: `npm run typecheck` (em cada pasta).
 
@@ -63,7 +64,10 @@ frontend/
 | Método | Rota | Descrição | Requisito |
 |---|---|---|---|
 | POST | /auth/login | Autenticação (retorna JWT) | — |
-| POST | /auth/users | Criar usuário (somente ADMIN) | RNF03 |
+| GET/POST | /auth/users | Listar / criar usuários (somente ADMIN) | RNF03 |
+| PUT | /auth/users/:id | Editar nome, perfil e situação (ativo/desativado) (somente ADMIN) | RNF03 |
+| PUT | /auth/users/:id/password | Definir nova senha de um usuário (somente ADMIN) | RNF03 |
+| PATCH | /auth/me/password | Trocar a própria senha (informando a atual) | RNF03 |
 | GET/POST | /customers | Listar (busca) / cadastrar cliente | RF01, RF02 |
 | GET/PUT | /customers/:id | Consultar / editar cliente | RF02 |
 | GET/POST | /vehicles | Listar (busca) / cadastrar veículo | RF03, RF04 |
