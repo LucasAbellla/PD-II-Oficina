@@ -11,7 +11,9 @@ export const STATUS_LABEL: Record<OrderStatus, string> = {
 
 export type StatusSummary = Record<OrderStatus, number>;
 
-export interface User { id: string; name: string; email: string; role: Role }
+export const ROLE_LABEL: Record<Role, string> = { ADMIN: 'Administrador', ATTENDANT: 'Atendente' };
+
+export interface User { id: string; name: string; email: string; role: Role; active?: boolean; createdAt?: string }
 export interface Paged<T> { data: T[]; meta: { page: number; pageSize: number; total: number; totalPages: number } }
 
 export interface Customer {

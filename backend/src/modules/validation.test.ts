@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { paginationSchema } from '../lib/http.js';
+import { changePasswordSchema, createUserSchema, updateUserSchema } from './auth/auth.schema.js';
 import { customerSchema } from './customers/customers.schema.js';
 import {
   createOrderSchema,
@@ -52,5 +53,18 @@ describe('validação e normalização do MVP', () => {
   it('limita a paginação a 100 registros', () => {
     expect(paginationSchema.parse({})).toEqual({ page: 1, pageSize: 20 });
     expect(() => paginationSchema.parse({ pageSize: 101 })).toThrow();
+  });
+
+  it('valida criação e edição de usuários', () => {
+    const created = createUserSchema.parse({ name: ' Ana ', email: ' ANA@Oficina.local ', password: 'senha123' });
+    expect(created).toMatchObject({ name: 'Ana', email: 'ana@oficina.local', role: 'ATTENDANT' });
+    expect(() => createUserSchema.parse({ name: 'Ana', email: 'ana@oficina.local', password: '1234567' })).toThrow();
+    expect(() => updateUserSchema.parse({ name: 'Ana', role: 'GERENTE', active: true })).toThrow();
+  });
+
+  it('exige senha nova diferente da atual e com 8 caracteres', () => {
+    expect(changePasswordSchema.safeParse({ currentPassword: 'senha123', newPassword: 'outra1234' }).success).toBe(true);
+    expect(changePasswordSchema.safeParse({ currentPassword: 'senha123', newPassword: 'senha123' }).success).toBe(false);
+    expect(changePasswordSchema.safeParse({ currentPassword: 'senha123', newPassword: 'curta' }).success).toBe(false);
   });
 });

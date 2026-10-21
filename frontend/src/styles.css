@@ -34,6 +34,9 @@ a:hover { text-decoration: underline; }
 .avatar { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: #334155; color: #fff; font-weight: 600; }
 .user-name { flex: 1; display: flex; flex-direction: column; color: #fff; font-size: .9rem; min-width: 0; }
 .user-name small { color: #94a3b8; font-size: .75rem; }
+.user-name > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user { gap: 6px; }
+.user .icon-btn { padding: 5px; }
 .user .icon-btn { color: #94a3b8; }
 .user .icon-btn:hover { background: rgba(255,255,255,.08); color: #fff; }
 .main { min-width: 0; display: flex; flex-direction: column; }
@@ -166,6 +169,25 @@ th.right { text-align: right; }
 .timeline > li::before { content: ''; position: absolute; left: -30px; top: 20px; width: 12px; height: 12px; border-radius: 50%; background: var(--primary); border: 3px solid var(--bg); }
 .timeline-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .timeline-items { margin: 6px 0 0; padding-left: 18px; }
+
+/* Usuários */
+fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+legend { font-size: .85rem; font-weight: 600; color: #374151; margin-bottom: 6px; }
+.radio-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.radio-group legend { grid-column: 1 / -1; }
+.radio-card { flex-direction: row; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; font-weight: 400; }
+.radio-card input, .switch input { width: auto; margin-top: 3px; accent-color: var(--primary); }
+.radio-card span { display: flex; flex-direction: column; gap: 2px; }
+.radio-card.selected { border-color: var(--primary); background: var(--primary-soft); }
+.radio-group:disabled .radio-card { opacity: .6; cursor: default; }
+.switch { flex-direction: row; align-items: center; gap: 10px; font-weight: 500; cursor: pointer; }
+.badge-admin { background: #ede9fe; color: #5b21b6; }
+.status-dot { display: inline-flex; align-items: center; gap: 6px; font-size: .85rem; }
+.status-dot::before { content: ''; width: 8px; height: 8px; border-radius: 50%; }
+.status-dot.on::before { background: var(--success); }
+.status-dot.off { color: var(--muted); }
+.status-dot.off::before { background: #9ca3af; }
+tr.inactive td { color: var(--muted); }
 
 /* Modal, confirmação e notificações */
 .modal-backdrop { position: fixed; inset: 0; z-index: 50; background: rgba(15,23,42,.45); display: grid; place-items: center; padding: 16px; animation: fade .15s; }

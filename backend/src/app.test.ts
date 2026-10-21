@@ -47,6 +47,13 @@ describe('API HTTP', () => {
     expect(body.details.length).toBeGreaterThan(0);
   });
 
+  it('protege a gestão de usuários e a troca de senha sem token', async () => {
+    const list = await fetch(`${baseUrl}/api/auth/users`);
+    expect(list.status).toBe(401);
+    const change = await fetch(`${baseUrl}/api/auth/me/password`, { method: 'PATCH' });
+    expect(change.status).toBe(401);
+  });
+
   it('retorna 404 padronizado para rota inexistente', async () => {
     const response = await fetch(`${baseUrl}/api/inexistente`);
     expect(response.status).toBe(404);

@@ -26,6 +26,7 @@ model User {
   email        String         @unique
   passwordHash String
   role         Role           @default(ATTENDANT)
+  active       Boolean        @default(true)
   createdAt    DateTime       @default(now())
   orders       ServiceOrder[]
 }
