@@ -35,6 +35,12 @@ export async function api<T>(path: string, opts: { method?: string; body?: unkno
   return json as T;
 }
 
+/** Erros de validação da API agrupados por campo, para exibir embaixo de cada input. */
+export function fieldErrors(e: unknown): Record<string, string> {
+  if (!(e instanceof ApiError) || !e.details) return {};
+  return Object.fromEntries(e.details.map((d) => [d.field, d.message]));
+}
+
 /** Mensagem amigável a partir de um erro da API (inclui erros de campo). */
 export function errorMessage(e: unknown): string {
   if (e instanceof ApiError) {
