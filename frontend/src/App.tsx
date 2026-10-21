@@ -5,6 +5,7 @@ import CustomersPage from './pages/CustomersPage';
 import LoginPage from './pages/LoginPage';
 import OrderDetailPage from './pages/OrderDetailPage';
 import OrdersPage from './pages/OrdersPage';
+import UsersPage from './pages/UsersPage';
 import VehicleHistoryPage from './pages/VehicleHistoryPage';
 import VehiclesPage from './pages/VehiclesPage';
 
@@ -20,6 +21,7 @@ export default function App() {
         <Route path="/clientes/:id" element={<CustomerDetailPage />} />
         <Route path="/veiculos" element={<VehiclesPage />} />
         <Route path="/veiculos/:id/historico" element={<VehicleHistoryPage />} />
+        <Route path="/usuarios" element={<UsersPage />} />
         <Route path="*" element={<Navigate to="/os" replace />} />
       </Route>
     </Routes>
