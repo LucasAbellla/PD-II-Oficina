@@ -1,5 +1,7 @@
 # Oficina — Sistema web de gestão de serviços e histórico de manutenção
 
+[![CI](https://github.com/LucasAbellla/PD-II-Oficina/actions/workflows/ci.yml/badge.svg)](https://github.com/LucasAbellla/PD-II-Oficina/actions/workflows/ci.yml)
+
 Projeto de Desenvolvimento II (Unisenac, 2026/2) — MVP para pequenas oficinas mecânicas:
 clientes → veículos → ordens de serviço → serviços realizados → histórico do veículo.
 
@@ -35,7 +37,20 @@ Login inicial (definido no `.env` do backend): `admin@oficina.local` / `admin123
 **Troque a senha (ícone de chave no menu, "Alterar senha") e o `JWT_SECRET` antes de qualquer uso real.**
 Os logins dos funcionários são criados pelo ADMIN na tela **Usuários**.
 
-Testes: `cd backend && npm test` · Verificação de tipos: `npm run typecheck` (em cada pasta).
+## Testes e CI
+
+| Comando | Onde | O que cobre |
+|---|---|---|
+| `npm test` | backend | Regras de status, validações e rotas sem banco |
+| `npm run test:integration` | backend | Fluxo T1–T6 da validação e regras de negócio contra o PostgreSQL |
+| `npm test` | frontend | Máscaras/formatação e cliente HTTP |
+| `npm run typecheck` | ambos | Verificação de tipos |
+
+Os testes de integração usam o banco `oficina_test` (recriado a cada execução) no mesmo PostgreSQL do
+`docker compose`; para outro endereço, defina `TEST_DATABASE_URL` (o nome do banco precisa terminar em `_test`).
+
+O GitHub Actions (`.github/workflows/ci.yml`) roda tipos, testes e build do backend e do frontend a cada push na
+`main` e em todo pull request.
 
 ## Estrutura
 
@@ -47,6 +62,7 @@ backend/
     middlewares/              autenticação/perfis, validação, tratamento de erros
     lib/                      prisma, erros, utilitários HTTP
     modules/<dominio>/        *.routes.ts → *.service.ts → Prisma (+ *.schema.ts com Zod)
+  test/                       testes de integração da API (banco de teste)
 frontend/
   src/api/client.ts           cliente HTTP (token JWT)
   src/auth/                   contexto de autenticação
