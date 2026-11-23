@@ -15,3 +15,13 @@ export function maskPhone(value: string) {
 }
 
 export const normalizePlate = (value: string) => value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 7);
+
+/** Formata minutos como "2 h 30 min". */
+export function formatMinutes(min: number | null): string {
+  if (min == null) return '—';
+  const total = Math.round(min);
+  if (total < 60) return `${total} min`;
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return m ? `${h} h ${m} min` : `${h} h`;
+}

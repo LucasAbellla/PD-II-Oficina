@@ -54,6 +54,31 @@ describe('API HTTP', () => {
     expect(change.status).toBe(401);
   });
 
+  it('protege dashboard, nota fiscal e link de acompanhamento sem token de funcionário', async () => {
+    const id = '123e4567-e89b-12d3-a456-426614174000';
+    for (const path of [`/api/dashboard`, `/api/service-orders/${id}/invoice`, `/api/customers/${id}/access-pin`]) {
+      const response = await fetch(`${baseUrl}${path}`);
+      expect(response.status).toBe(401);
+    }
+  });
+
+  it('área do cliente exige sessão e valida o login antes de acessar o banco', async () => {
+    const noSession = await fetch(`${baseUrl}/api/client/vehicles`);
+    expect(noSession.status).toBe(401);
+
+    const badLogin = await fetch(`${baseUrl}/api/client/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: 'ABC1D23', pin: '12' }),
+    });
+    expect(badLogin.status).toBe(400);
+  });
+
+  it('link público com token malformado responde 404 sem consultar o banco', async () => {
+    const response = await fetch(`${baseUrl}/api/public/orders/token-invalido`);
+    expect(response.status).toBe(404);
+  });
+
   it('retorna 404 padronizado para rota inexistente', async () => {
     const response = await fetch(`${baseUrl}/api/inexistente`);
     expect(response.status).toBe(404);

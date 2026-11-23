@@ -29,20 +29,26 @@ model User {
   active       Boolean        @default(true)
   createdAt    DateTime       @default(now())
   orders       ServiceOrder[]
+  events       StatusEvent[]
+  invoices     OrderInvoice[]
 }
 
 model Customer {
   id        String    @id @default(uuid())
   name      String
   document  String?
+  /// Somente dígitos do CPF/CNPJ (usado no acesso do cliente por documento)
+  documentDigits String?
   phone     String?
   email     String?
   notes     String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   vehicles  Vehicle[]
+  access    CustomerAccess?
 
   @@index([name])
+  @@index([documentDigits])
 }
 
 model Vehicle {
@@ -74,6 +80,12 @@ model ServiceOrder {
   createdById String
   createdBy   User          @relation(fields: [createdById], references: [id])
   items       ServiceItem[]
+  events      StatusEvent[]
+  invoice     OrderInvoice?
+
+  // Acompanhamento pelo cliente (link público somente leitura)
+  publicToken          String?   @unique
+  publicTokenExpiresAt DateTime?
 
   @@index([vehicleId])
   @@index([status])
@@ -88,4 +100,44 @@ model ServiceItem {
   performedAt DateTime     @default(now())
 
   @@index([orderId])
+}
+
+/// Linha do tempo da OS: cada mudança de status é registrada (quem e quando).
+model StatusEvent {
+  id          String       @id @default(uuid())
+  orderId     String
+  order       ServiceOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fromStatus  OrderStatus?
+  toStatus    OrderStatus
+  createdAt   DateTime     @default(now())
+  createdById String?
+  createdBy   User?        @relation(fields: [createdById], references: [id])
+
+  @@index([orderId])
+  @@index([createdAt])
+}
+
+/// Código de acesso (PIN) do cliente à área do cliente. Guardado apenas como hash.
+model CustomerAccess {
+  customerId     String    @id
+  customer       Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  pinHash        String
+  failedAttempts Int       @default(0)
+  lockedUntil    DateTime?
+  updatedAt      DateTime  @updatedAt
+}
+
+/// Nota fiscal (PDF) anexada pelos funcionários quando a OS fica pronta.
+/// Armazenada no próprio banco (bytea) por simplicidade; em escala, migrar o conteúdo para um storage de objetos.
+model OrderInvoice {
+  id           String       @id @default(uuid())
+  orderId      String       @unique
+  order        ServiceOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fileName     String
+  mimeType     String       @default("application/pdf")
+  sizeBytes    Int
+  content      Bytes
+  uploadedAt   DateTime     @default(now())
+  uploadedById String?
+  uploadedBy   User?        @relation(fields: [uploadedById], references: [id])
 }

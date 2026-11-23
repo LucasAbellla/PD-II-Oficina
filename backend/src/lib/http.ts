@@ -19,3 +19,13 @@ export const idParam = z.object({ id: z.string().uuid() });
 export function pageMeta(page: number, pageSize: number, total: number) {
   return { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) };
 }
+
+export function sendPdf(res: Response, osNumber: number, content: Buffer) {
+  res.set({
+    'Content-Type': 'application/pdf',
+    'Content-Disposition': `attachment; filename="nota-fiscal-OS${osNumber}.pdf"`,
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+  });
+  res.send(content);
+}
