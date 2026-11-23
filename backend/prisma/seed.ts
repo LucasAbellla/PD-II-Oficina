@@ -22,7 +22,20 @@ async function main() {
   // Dados FICTÍCIOS para demonstração (RNF07 - nunca usar dados pessoais reais sem autorização)
   const existingCustomer = await prisma.customer.findFirst({ where: { email: 'cliente@exemplo.com' } });
   const customer = existingCustomer ?? await prisma.customer.create({
-    data: { name: 'Cliente Exemplo', phone: '(51) 90000-0000', email: 'cliente@exemplo.com' },
+    data: {
+      name: 'Cliente Exemplo',
+      phone: '(51) 90000-0000',
+      email: 'cliente@exemplo.com',
+      // CPF de teste com dígitos verificadores válidos; não pertence a uma pessoa real.
+      document: '529.982.247-25',
+      documentDigits: '52998224725',
+    },
+  });
+  // Código de acesso de demonstração para a área do cliente (placa ABC1D23 ou CPF acima + código 123456)
+  await prisma.customerAccess.upsert({
+    where: { customerId: customer.id },
+    update: {},
+    create: { customerId: customer.id, pinHash: await bcrypt.hash('123456', 10) },
   });
   const vehicle = await prisma.vehicle.upsert({
     where: { plate: 'ABC1D23' },
@@ -40,10 +53,11 @@ async function main() {
         mileageIn: 85000,
         createdById: admin.id,
         items: { create: [{ description: 'Troca de óleo e filtro' }] },
+        events: { create: [{ toStatus: 'OPEN', createdById: admin.id }] },
       },
     });
   }
-  console.log(`Seed concluído. Login: ${email}`);
+  console.log(`Seed concluído. Funcionário: ${email} | Cliente demo: placa ABC1D23 ou CPF 529.982.247-25, código 123456`);
 }
 
 main().finally(() => prisma.$disconnect());

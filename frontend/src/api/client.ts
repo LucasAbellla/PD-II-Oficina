@@ -13,8 +13,8 @@ export class ApiError extends Error {
   }
 }
 
-export async function api<T>(path: string, opts: { method?: string; body?: unknown } = {}): Promise<T> {
-  const token = tokenStore.get();
+export async function api<T>(path: string, opts: { method?: string; body?: unknown; auth?: boolean } = {}): Promise<T> {
+  const token = opts.auth === false ? null : tokenStore.get();
   const res = await fetch(`${BASE}${path}`, {
     method: opts.method ?? 'GET',
     headers: {
@@ -47,4 +47,67 @@ export function errorMessage(e: unknown): string {
     return e.details?.length ? e.details.map((d) => `${d.field}: ${d.message}`).join(' · ') : e.message;
   }
   return 'Não foi possível conectar ao servidor';
+}
+
+// ---------- Área do cliente (sessão separada, guardada só na aba: fechar a aba encerra a sessão) ----------
+const CLIENT_KEY = 'oficina_client_token';
+export const clientTokenStore = {
+  get: () => sessionStorage.getItem(CLIENT_KEY),
+  set: (t: string) => sessionStorage.setItem(CLIENT_KEY, t),
+  clear: () => sessionStorage.removeItem(CLIENT_KEY),
+};
+
+export async function clientApi<T>(path: string, opts: { method?: string; body?: unknown; auth?: boolean } = {}): Promise<T> {
+  const token = opts.auth === false ? null : clientTokenStore.get();
+  const res = await fetch(`${BASE}${path}`, {
+    method: opts.method ?? 'GET',
+    headers: {
+      ...(opts.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    if (res.status === 401 && token) {
+      clientTokenStore.clear();
+      window.location.href = '/cliente';
+    }
+    throw new ApiError(res.status, json.error ?? 'Erro inesperado', json.details);
+  }
+  return json as T;
+}
+
+// ---------- PDF: download e upload (nota fiscal) ----------
+export async function downloadPdf(path: string, filename: string, who: 'staff' | 'client'): Promise<void> {
+  const token = who === 'staff' ? tokenStore.get() : clientTokenStore.get();
+  const res = await fetch(`${BASE}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, json.error ?? 'Não foi possível baixar o arquivo');
+  }
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+export async function uploadPdf<T>(path: string, file: File): Promise<T> {
+  const token = tokenStore.get();
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/pdf',
+      'X-File-Name': encodeURIComponent(file.name),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: file,
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(res.status, json.error ?? 'Falha no envio do arquivo', json.details);
+  return json as T;
 }

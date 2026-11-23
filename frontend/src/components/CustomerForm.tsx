@@ -51,7 +51,12 @@ export default function CustomerForm({ customer, onSaved, onCancel }: Props) {
         <input type="email" value={form.email} onChange={set('email')} aria-invalid={!!errors.email || undefined} />
         {errors.email && <small className="field-error">{errors.email}</small>}
       </label>
-      <label>CPF/CNPJ<input value={form.document} onChange={set('document')} /></label>
+      <label>CPF/CNPJ
+        <input value={form.document} onChange={set('document')} inputMode="numeric" aria-invalid={!!errors.document || undefined} />
+        {errors.document
+          ? <small className="field-error">{errors.document}</small>
+          : <small className="muted">Necessário para o cliente entrar na área do cliente com o CPF.</small>}
+      </label>
       <label className="wide">Observações<textarea rows={2} value={form.notes} onChange={set('notes')} /></label>
       {error && <p className="error wide">{error}</p>}
       <div className="modal-actions wide">

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { asyncHandler, idParam } from '../../lib/http.js';
 import { authenticate, requireRole } from '../../middlewares/auth.js';
+import { rateLimit } from '../../middlewares/rateLimit.js';
 import { validateBody } from '../../middlewares/validate.js';
 import {
   changePasswordSchema,
@@ -13,8 +14,10 @@ import * as service from './auth.service.js';
 
 export const authRouter = Router();
 
+// Limite de tentativas de login por IP (proteção contra força bruta)
 authRouter.post(
   '/login',
+  rateLimit({ windowMs: 15 * 60_000, max: 30 }),
   validateBody(loginSchema),
   asyncHandler(async (req, res) => res.json(await service.login(req.body))),
 );

@@ -9,6 +9,7 @@ import Modal from './Modal';
 import PasswordForm from './PasswordForm';
 
 const NAV: { to: string; label: string; icon: IconName; adminOnly?: boolean }[] = [
+  { to: '/painel', label: 'Painel', icon: 'chart' },
   { to: '/os', label: 'Ordens de serviço', icon: 'clipboard' },
   { to: '/clientes', label: 'Clientes', icon: 'users' },
   { to: '/veiculos', label: 'Veículos', icon: 'car' },
