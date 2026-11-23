@@ -96,9 +96,24 @@ frontend/
 | POST/DELETE | /service-orders/:id/items | Registrar/remover serviço realizado | RF06 |
 
 ## Publicação
-Frontend na **Vercel** (defina `VITE_API_URL` apontando para a API) e backend na **Render** com PostgreSQL gerenciado
-(`DATABASE_URL`, `JWT_SECRET`, `CORS_ORIGIN`; build: `npm install && npx prisma generate && npm run build`;
-start: `npx prisma migrate deploy && npm start`).
+Backend e banco na **Render** (arquivo `render.yaml`) e frontend na **Vercel** (`frontend/vercel.json`).
+A Render só publica um commit da `main` depois que o CI passa; a Vercel publica a cada push na `main`
+e gera uma prévia para cada PR.
+
+1. **Render:** *New → Blueprint*, escolha este repositório. São criados a API (`oficina-api`) e o banco
+   (`oficina-db`); o `JWT_SECRET` é gerado automaticamente. As migrações rodam a cada deploy.
+2. **Vercel:** *Add New → Project*, este repositório, *Root Directory* `frontend` (o preset Vite é detectado).
+   Variável `VITE_API_URL` = `https://<api>.onrender.com/api`.
+3. Na Render, preencha `CORS_ORIGIN` com o endereço da Vercel (ex.: `https://oficina.vercel.app`).
+4. Usuário inicial: rode o seed uma vez a partir da sua máquina, usando a *External Database URL* do banco:
+   ```bash
+   cd backend
+   DATABASE_URL="<external database url>" SEED_ADMIN_PASSWORD="<senha forte>" npm run seed
+   ```
+
+No plano gratuito a API "dorme" após 15 min sem uso (a primeira requisição leva cerca de 1 min) e o banco
+gratuito da Render expira 30 dias após a criação (mais 14 de carência); abra o sistema alguns minutos antes
+de uma demonstração.
 
 ## Privacidade (RNF07)
 Use apenas dados fictícios ou autorizados. Não versione arquivos `.env`.
