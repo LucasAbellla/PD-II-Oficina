@@ -23,6 +23,10 @@ services:
         generateValue: true
       - key: CORS_ORIGIN
         sync: false
+      - key: PORTAL_TOKEN_DAYS
+        value: "30"
+      - key: WORKSHOP_NAME
+        value: JMG Autopeças
 
 databases:
   - name: oficina-db

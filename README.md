@@ -37,11 +37,13 @@ Login inicial (definido no `.env` do backend): `admin@oficina.local` / `admin123
 **Troque a senha (ícone de chave no menu, "Alterar senha") e o `JWT_SECRET` antes de qualquer uso real.**
 Os logins dos funcionários são criados pelo ADMIN na tela **Usuários**.
 
+Dados de demonstração para capturas de tela (fictícios): `npm run seed && npm run seed:demo` (clientes com código `123456`).
+
 ## Testes e CI
 
 | Comando | Onde | O que cobre |
 |---|---|---|
-| `npm test` | backend | Regras de status, validações e rotas sem banco |
+| `npm test` | backend | Regras de status, validações, CPF, linha do tempo, métricas e rotas sem banco |
 | `npm run test:integration` | backend | Fluxo T1–T6 da validação e regras de negócio contra o PostgreSQL |
 | `npm test` | frontend | Máscaras/formatação e cliente HTTP |
 | `npm run typecheck` | ambos | Verificação de tipos |
@@ -52,17 +54,38 @@ Os testes de integração usam o banco `oficina_test` (recriado a cada execuçã
 O GitHub Actions (`.github/workflows/ci.yml`) roda tipos, testes e build do backend e do frontend a cada push na
 `main` e em todo pull request.
 
+## Diferenciais (o que planilha e WhatsApp não fazem)
+- **Link de acompanhamento por OS** (`/acompanhar/<token>`): o funcionário gera um link somente leitura e envia ao cliente pelo
+  WhatsApp (link `wa.me`, sem integração com API). O cliente vê, sem login e pelo celular, o status com linha do tempo, os
+  serviços realizados e o histórico do veículo. Token aleatório de 192 bits, validade configurável (`PORTAL_TOKEN_DAYS`),
+  revogável; não expõe CPF, telefone, observações internas nem nomes de funcionários; placa parcialmente oculta.
+- **Área do cliente** (`/cliente`): entrando com a **placa**, o cliente vê só aquele veículo; entrando com o **CPF**, vê todos
+  os veículos do cadastro. Em ambos os casos informa um **código de acesso de 6 dígitos** gerado pelo funcionário em
+  *Clientes → detalhe → Acesso do cliente* (exibido uma única vez; o banco guarda só o hash). Bloqueio de 15 min após 5 erros,
+  limite de tentativas por IP, erro genérico e sessão de 2 h só na aba.
+- **Nota fiscal em PDF:** o funcionário anexa na OS (Concluída/Entregue, até 5 MB, tabela `OrderInvoice`, bytea) e o cliente
+  baixa na área dele. O sistema **não emite** nota fiscal: guarda e entrega o PDF emitido no sistema fiscal da oficina.
+- **Linha do tempo de status** (quem e quando) e **Painel** (`/painel`): OS em aberto, por status, veículos que retornaram e
+  tempo médio por etapa — base para medir o tempo de atendimento.
+
+Demonstração (seed): placa `ABC1D23` ou CPF `529.982.247-25`, código `123456`.
+
+> Ao atualizar um banco existente: `npx prisma migrate dev` (aplica a migração `20261113120000_area_cliente_e_nota_fiscal`,
+> que também preenche o CPF de clientes já cadastrados). Em produção: `npx prisma migrate deploy`.
+
 ## Estrutura
 
 ```
 backend/
-  prisma/schema.prisma        modelo de dados (User, Customer, Vehicle, ServiceOrder, ServiceItem)
+  prisma/schema.prisma        modelo de dados (usuários, clientes, veículos, OS, serviços, eventos de status, acesso do cliente, nota fiscal)
   src/
     config/env.ts             variáveis de ambiente validadas
     middlewares/              autenticação/perfis, validação, tratamento de erros
     lib/                      prisma, erros, utilitários HTTP
     modules/<dominio>/        *.routes.ts → *.service.ts → Prisma (+ *.schema.ts com Zod)
-  test/                       testes de integração da API (banco de teste)
+    modules/public/           link público por OS (sem login, acesso por token)
+    modules/client/           área do cliente (placa/CPF + código, sessão própria)
+    modules/dashboard/        indicadores e tempos médios por etapa
 frontend/
   src/api/client.ts           cliente HTTP (token JWT)
   src/auth/                   contexto de autenticação
@@ -94,26 +117,20 @@ frontend/
 | GET | /service-orders/:id | Detalhe da OS | RF05 |
 | PATCH | /service-orders/:id/status | Alterar status (regras de transição) | RF07 |
 | POST/DELETE | /service-orders/:id/items | Registrar/remover serviço realizado | RF06 |
+| POST/DELETE | /service-orders/:id/share | Gerar/renovar e revogar o link do cliente | Diferencial |
+| PUT/GET/DELETE | /service-orders/:id/invoice | Anexar/baixar/remover nota fiscal (funcionário) | Diferencial |
+| POST/DELETE | /customers/:id/access-pin | Gerar/revogar código de acesso do cliente | Diferencial |
+| GET | /dashboard | Indicadores e tempos médios | Diferencial |
+| GET | /public/orders/:token | Acompanhamento por link (**sem login**) | Diferencial |
+| POST | /client/login | Login do cliente (placa ou CPF + código) | Diferencial |
+| GET | /client/vehicles, /client/vehicles/:id | Veículos e atendimentos do cliente | Diferencial |
+| GET | /client/orders/:id/invoice | Baixar nota fiscal (OS pronta) | Diferencial |
 
 ## Publicação
-Backend e banco na **Render** (arquivo `render.yaml`) e frontend na **Vercel** (`frontend/vercel.json`).
-A Render só publica um commit da `main` depois que o CI passa; a Vercel publica a cada push na `main`
-e gera uma prévia para cada PR.
+Backend e banco na **Render** (`render.yaml`) e frontend na **Vercel** (`frontend/vercel.json`). A Render só publica
+um commit da `main` depois que o CI passa. Passo a passo em [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
-1. **Render:** *New → Blueprint*, escolha este repositório. São criados a API (`oficina-api`) e o banco
-   (`oficina-db`); o `JWT_SECRET` é gerado automaticamente. As migrações rodam a cada deploy.
-2. **Vercel:** *Add New → Project*, este repositório, *Root Directory* `frontend` (o preset Vite é detectado).
-   Variável `VITE_API_URL` = `https://<api>.onrender.com/api`.
-3. Na Render, preencha `CORS_ORIGIN` com o endereço da Vercel (ex.: `https://oficina.vercel.app`).
-4. Usuário inicial: rode o seed uma vez a partir da sua máquina, usando a *External Database URL* do banco:
-   ```bash
-   cd backend
-   DATABASE_URL="<external database url>" SEED_ADMIN_PASSWORD="<senha forte>" npm run seed
-   ```
-
-No plano gratuito a API "dorme" após 15 min sem uso (a primeira requisição leva cerca de 1 min) e o banco
-gratuito da Render expira 30 dias após a criação (mais 14 de carência); abra o sistema alguns minutos antes
-de uma demonstração.
+Fluxo de ramos/PR, tag da versão final e contribuição por integrante: [`docs/FLUXO_GIT.md`](docs/FLUXO_GIT.md).
 
 ## Privacidade (RNF07)
 Use apenas dados fictícios ou autorizados. Não versione arquivos `.env`.

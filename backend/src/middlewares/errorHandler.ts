@@ -30,6 +30,10 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     if (err.code === 'P2025') return res.status(404).json({ error: 'Registro não encontrado' });
   }
 
+  if (typeof err === 'object' && err !== null && (err as { status?: number }).status === 413) {
+    return res.status(413).json({ error: 'Arquivo maior que o limite de 5 MB' });
+  }
+
   console.error(err);
   return res.status(500).json({ error: 'Erro interno do servidor' });
 }

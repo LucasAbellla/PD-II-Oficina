@@ -24,3 +24,19 @@ customersRouter.put(
   validateBody(customerSchema),
   asyncHandler(async (req, res) => res.json(await service.update(idParam.parse(req.params).id, req.body))),
 );
+
+// Área do cliente: código de acesso (PIN) entregue ao cliente pela oficina
+customersRouter.post(
+  '/:id/access-pin',
+  asyncHandler(async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.status(201).json(await service.generateAccessPin(idParam.parse(req.params).id));
+  }),
+);
+customersRouter.delete(
+  '/:id/access-pin',
+  asyncHandler(async (req, res) => {
+    await service.revokeAccess(idParam.parse(req.params).id);
+    res.status(204).end();
+  }),
+);
