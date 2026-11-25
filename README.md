@@ -1,5 +1,7 @@
 # Oficina — Sistema web de gestão de serviços e histórico de manutenção
 
+[![CI](https://github.com/LucasAbellla/PD-II-Oficina/actions/workflows/ci.yml/badge.svg)](https://github.com/LucasAbellla/PD-II-Oficina/actions/workflows/ci.yml)
+
 Projeto de Desenvolvimento II (Unisenac, 2026/2) — MVP para pequenas oficinas mecânicas:
 clientes → veículos → ordens de serviço → serviços realizados → histórico do veículo.
 
@@ -37,7 +39,20 @@ Os logins dos funcionários são criados pelo ADMIN na tela **Usuários**.
 
 Dados de demonstração para capturas de tela (fictícios): `npm run seed && npm run seed:demo` (clientes com código `123456`).
 
-Testes: `cd backend && npm test` · Verificação de tipos: `npm run typecheck` (em cada pasta).
+## Testes e CI
+
+| Comando | Onde | O que cobre |
+|---|---|---|
+| `npm test` | backend | Regras de status, validações, CPF, linha do tempo, métricas e rotas sem banco |
+| `npm run test:integration` | backend | Fluxo T1–T6 da validação e regras de negócio contra o PostgreSQL |
+| `npm test` | frontend | Máscaras/formatação e cliente HTTP |
+| `npm run typecheck` | ambos | Verificação de tipos |
+
+Os testes de integração usam o banco `oficina_test` (recriado a cada execução) no mesmo PostgreSQL do
+`docker compose`; para outro endereço, defina `TEST_DATABASE_URL` (o nome do banco precisa terminar em `_test`).
+
+O GitHub Actions (`.github/workflows/ci.yml`) roda tipos, testes e build do backend e do frontend a cada push na
+`main` e em todo pull request.
 
 ## Diferenciais (o que planilha e WhatsApp não fazem)
 - **Link de acompanhamento por OS** (`/acompanhar/<token>`): o funcionário gera um link somente leitura e envia ao cliente pelo
@@ -62,7 +77,7 @@ Demonstração (seed): placa `ABC1D23` ou CPF `529.982.247-25`, código `123456`
 
 ```
 backend/
-  prisma/schema.prisma        modelo de dados (User, Customer, Vehicle, ServiceOrder, ServiceItem)
+  prisma/schema.prisma        modelo de dados (usuários, clientes, veículos, OS, serviços, eventos de status, acesso do cliente, nota fiscal)
   src/
     config/env.ts             variáveis de ambiente validadas
     middlewares/              autenticação/perfis, validação, tratamento de erros
@@ -112,14 +127,10 @@ frontend/
 | GET | /client/orders/:id/invoice | Baixar nota fiscal (OS pronta) | Diferencial |
 
 ## Publicação
-Frontend na **Vercel** (defina `VITE_API_URL` apontando para a API) e backend na **Render** com PostgreSQL gerenciado
-(`DATABASE_URL`, `JWT_SECRET`, `CORS_ORIGIN`; build: `npm install && npx prisma generate && npm run build`;
-start: `npx prisma migrate deploy && npm start`). Veja `docs/DEPLOY.md`.
+Backend e banco na **Render** (`render.yaml`) e frontend na **Vercel** (`frontend/vercel.json`). A Render só publica
+um commit da `main` depois que o CI passa. Passo a passo em [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
-## Publicação, CI e fluxo de trabalho
-- Passo a passo de deploy (Vercel + Render): [`docs/DEPLOY.md`](docs/DEPLOY.md)
-- CI no GitHub Actions (typecheck, testes e build): `.github/workflows/ci.yml`
-- Fluxo de ramos/PR, tag da versão final e contribuição por integrante: [`docs/FLUXO_GIT.md`](docs/FLUXO_GIT.md)
+Fluxo de ramos/PR, tag da versão final e contribuição por integrante: [`docs/FLUXO_GIT.md`](docs/FLUXO_GIT.md).
 
 ## Privacidade (RNF07)
 Use apenas dados fictícios ou autorizados. Não versione arquivos `.env`.

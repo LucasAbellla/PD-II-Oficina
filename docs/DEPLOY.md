@@ -1,36 +1,51 @@
 # Publicação (deploy)
 
-Frontend na **Vercel** e backend + PostgreSQL na **Render**. Confira os limites do plano gratuito de cada serviço antes de
-apresentar (hibernação do backend e retenção do banco mudam com o tempo).
+Backend + PostgreSQL na **Render** (definidos em `render.yaml`) e frontend na **Vercel** (`frontend/vercel.json`).
+A Render só publica um commit da `main` depois que o CI passa; a Vercel publica a cada push na `main` e gera uma
+prévia para cada PR.
 
 ## 1) Banco de dados e backend (Render)
-1. Crie um **PostgreSQL** na Render e copie a *Internal/External Database URL*.
-2. Crie um **Web Service** apontando para este repositório:
-   - *Root Directory:* `backend`
-   - *Build Command:* `npm install && npx prisma generate && npm run build`
-   - *Start Command:* `npx prisma migrate deploy && npm start`
-3. Variáveis de ambiente do serviço:
+1. *New → Blueprint*, escolha este repositório e a branch `main`.
+2. A Render cria o banco `oficina-db` e a API `oficina-api`. O `JWT_SECRET` é gerado automaticamente.
+   Ela pede o `CORS_ORIGIN`: use `http://localhost:5173` por enquanto e troque no passo 3 da Vercel.
+3. As migrações rodam a cada deploy (`prisma migrate deploy` no start).
+4. Teste: `https://<seu-backend>.onrender.com/api/health` deve responder `{"status":"ok"}`.
+
+Variáveis do serviço (já definidas no `render.yaml`, exceto `CORS_ORIGIN`):
 
 | Variável | Valor |
 |---|---|
 | `NODE_ENV` | `production` |
-| `DATABASE_URL` | URL do PostgreSQL da Render |
-| `JWT_SECRET` | texto longo e aleatório (≥ 32 caracteres) |
+| `DATABASE_URL` | ligada ao banco `oficina-db` |
+| `JWT_SECRET` | gerado pela Render |
 | `CORS_ORIGIN` | URL do frontend na Vercel (ex.: `https://oficina.vercel.app`) |
 | `PORTAL_TOKEN_DAYS` | `30` |
 | `WORKSHOP_NAME` | `JMG Autopeças` |
 
-4. Depois do primeiro deploy, crie o usuário administrador (Shell da Render ou localmente apontando para o banco da Render):
-   `npm run seed` (usa `SEED_ADMIN_EMAIL` e `SEED_ADMIN_PASSWORD`). **Troque a senha no primeiro acesso.**
-5. Teste: `https://<seu-backend>.onrender.com/api/health` deve responder `{"status":"ok"}`.
+### Usuário administrador
+Rode o seed uma vez a partir da sua máquina, com a *External Database URL* do banco (Render → `oficina-db` → Connect):
+
+```powershell
+cd backend
+$env:DATABASE_URL="<external database url>"; $env:SEED_ADMIN_PASSWORD="<senha forte>"; npm run seed
+```
+
+**Troque a senha no primeiro acesso.**
 
 ## 2) Frontend (Vercel)
-1. Importe o repositório; *Root Directory:* `frontend` (framework Vite).
-2. Variável de ambiente: `VITE_API_URL=https://<seu-backend>.onrender.com/api`
-3. O arquivo `frontend/vercel.json` já redireciona qualquer rota para o `index.html` (necessário para `/cliente`,
-   `/acompanhar/<token>` e demais rotas funcionarem ao abrir o link direto ou atualizar a página).
+1. *Add New → Project*, este repositório. Na tela de importação, use **Import single project** na pasta `frontend`
+   (não use o preset *Services*).
+2. Variável de ambiente: `VITE_API_URL=https://<seu-backend>.onrender.com/api` (é lida no build; se mudar, faça *Redeploy*).
+3. Volte na Render e troque `CORS_ORIGIN` pela URL da Vercel, sem barra no final.
 
-## 3) Conferência final
+O `frontend/vercel.json` redireciona qualquer rota para o `index.html` (necessário para `/cliente`,
+`/acompanhar/<token>` e demais rotas funcionarem ao abrir o link direto ou atualizar a página).
+
+## 3) Limites do plano gratuito
+- A API "dorme" após 15 min sem uso; a primeira requisição leva cerca de 1 min. Abra o sistema antes de apresentar.
+- O banco gratuito da Render expira 30 dias após a criação (mais 14 de carência). Anote a data e confira se cobre a defesa.
+
+## 4) Conferência final
 - Login de funcionário funciona e a lista de OS carrega (CORS correto).
 - Em uma OS, gerar o link de acompanhamento e abri-lo em aba anônima/celular.
 - Em *Clientes → Acesso do cliente*, gerar o código e entrar em `/cliente` com placa ou CPF.
