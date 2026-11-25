@@ -132,5 +132,8 @@ um commit da `main` depois que o CI passa. Passo a passo em [`docs/DEPLOY.md`](d
 
 Fluxo de ramos/PR, tag da versão final e contribuição por integrante: [`docs/FLUXO_GIT.md`](docs/FLUXO_GIT.md).
 
+Decisões de arquitetura e diagramas: [`docs/DECISOES_ARQUITETURA.md`](docs/DECISOES_ARQUITETURA.md) e
+[`docs/DIAGRAMAS.md`](docs/DIAGRAMAS.md).
+
 ## Privacidade (RNF07)
 Use apenas dados fictícios ou autorizados. Não versione arquivos `.env`.
