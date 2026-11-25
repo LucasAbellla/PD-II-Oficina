@@ -134,3 +134,4 @@ Fluxo de ramos/PR, tag da versão final e contribuição por integrante: [`docs/
 
 ## Privacidade (RNF07)
 Use apenas dados fictícios ou autorizados. Não versione arquivos `.env`.
+Termo de autorização e roteiro da validação com a oficina: [`docs/extensao/`](docs/extensao/).
