@@ -44,7 +44,7 @@ Dados de demonstração para capturas de tela (fictícios): `npm run seed && npm
 | Comando | Onde | O que cobre |
 |---|---|---|
 | `npm test` | backend | Regras de status, validações, CPF, linha do tempo, métricas e rotas sem banco |
-| `npm run test:integration` | backend | Fluxo T1–T6 da validação e regras de negócio contra o PostgreSQL |
+| `npm run test:integration` | backend | Fluxo T1–T6, regras de negócio, área do cliente (login, bloqueio, escopo), link público e nota fiscal contra o PostgreSQL |
 | `npm test` | frontend | Máscaras/formatação e cliente HTTP |
 | `npm run typecheck` | ambos | Verificação de tipos |
 
