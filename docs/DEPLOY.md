@@ -1,5 +1,7 @@
 # Publicação (deploy)
 
+Produção: aplicação em https://pd-ii-oficina.vercel.app e API em https://oficina-api-os65.onrender.com/api.
+
 Backend + PostgreSQL na **Render** (definidos em `render.yaml`) e frontend na **Vercel** (`frontend/vercel.json`).
 A Render só publica um commit da `main` depois que o CI passa; a Vercel publica a cada push na `main` e gera uma
 prévia para cada PR.

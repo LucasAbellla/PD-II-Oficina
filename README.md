@@ -5,6 +5,12 @@
 Projeto de Desenvolvimento II (Unisenac, 2026/2) — MVP para pequenas oficinas mecânicas:
 clientes → veículos → ordens de serviço → serviços realizados → histórico do veículo.
 
+## Sistema publicado
+- Aplicação: https://pd-ii-oficina.vercel.app
+- API: https://oficina-api-os65.onrender.com/api (saúde: `/api/health`)
+
+No plano gratuito a API dorme após 15 min sem uso; o primeiro acesso pode levar cerca de 1 min.
+
 ## Stack
 - **Frontend:** React 18 + TypeScript + Vite + React Router
 - **Backend:** Node.js + Express + TypeScript (Zod para validação, JWT para autenticação)
