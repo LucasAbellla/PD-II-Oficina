@@ -46,9 +46,22 @@ export async function login(input: z.infer<typeof clientLoginSchema>) {
     throw denied();
   }
 
-  const now = new Date();
+  let compared = false;
   for (const a of accesses) {
-    if (a.lockedUntil && a.lockedUntil > now) continue;
+    // Reserva a tentativa no banco antes de conferir o código. Como o incremento é atômico,
+    // requisições simultâneas não passam do limite.
+    const now = new Date();
+    const reserved = await prisma.customerAccess.updateMany({
+      where: {
+        customerId: a.customerId,
+        failedAttempts: { lt: MAX_ATTEMPTS },
+        OR: [{ lockedUntil: null }, { lockedUntil: { lte: now } }],
+      },
+      data: { failedAttempts: { increment: 1 } },
+    });
+    if (reserved.count === 0) continue; // bloqueado
+
+    compared = true;
     if (await bcrypt.compare(input.pin, a.pinHash)) {
       await prisma.customerAccess.update({ where: { customerId: a.customerId }, data: { failedAttempts: 0, lockedUntil: null } });
       const token = jwt.sign({ typ: 'client', cid: a.customerId, ...(vehicleId ? { vid: vehicleId } : {}) }, clientJwtSecret, {
@@ -56,12 +69,13 @@ export async function login(input: z.infer<typeof clientLoginSchema>) {
       });
       return { token, scope: vehicleId ? ('vehicle' as const) : ('customer' as const) };
     }
-    const attempts = a.failedAttempts + 1;
-    await prisma.customerAccess.update({
-      where: { customerId: a.customerId },
-      data: attempts >= MAX_ATTEMPTS ? { failedAttempts: 0, lockedUntil: new Date(now.getTime() + LOCK_MS) } : { failedAttempts: attempts },
+    await prisma.customerAccess.updateMany({
+      where: { customerId: a.customerId, failedAttempts: { gte: MAX_ATTEMPTS } },
+      data: { failedAttempts: 0, lockedUntil: new Date(Date.now() + LOCK_MS) },
     });
   }
+  // Mesmo tempo de resposta quando o acesso está bloqueado
+  if (!compared) await bcrypt.compare(input.pin, DUMMY_HASH);
   throw denied();
 }
 

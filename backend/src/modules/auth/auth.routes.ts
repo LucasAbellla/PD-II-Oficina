@@ -19,7 +19,12 @@ authRouter.post(
   '/login',
   rateLimit({ windowMs: 15 * 60_000, max: 30 }),
   validateBody(loginSchema),
-  asyncHandler(async (req, res) => res.json(await service.login(req.body))),
+  asyncHandler(async (req, res) => {
+    const result = await service.login(req.body);
+    // Registro de acesso; o IP também serve para conferir a configuração de TRUST_PROXY
+    console.info(`[login] usuario=${result.user.id} ip=${req.ip} x-forwarded-for="${req.headers['x-forwarded-for'] ?? ''}"`);
+    res.json(result);
+  }),
 );
 
 authRouter.get(
@@ -33,10 +38,7 @@ authRouter.patch(
   '/me/password',
   authenticate,
   validateBody(changePasswordSchema),
-  asyncHandler(async (req, res) => {
-    await service.changePassword(req.user!.id, req.body);
-    res.status(204).end();
-  }),
+  asyncHandler(async (req, res) => res.json(await service.changePassword(req.user!.id, req.body))),
 );
 
 // Gestão de usuários: somente ADMIN (RNF03)

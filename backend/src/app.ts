@@ -1,7 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
-import { env } from './config/env.js';
+import { env, trustProxySetting } from './config/env.js';
 import { authenticate } from './middlewares/auth.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { authRouter } from './modules/auth/auth.routes.js';
@@ -14,7 +14,8 @@ import { vehiclesRouter } from './modules/vehicles/vehicles.routes.js';
 
 export function createApp() {
   const app = express();
-  if (env.NODE_ENV === 'production') app.set('trust proxy', 1); // IP real atrás do proxy (Render)
+  const trustProxy = trustProxySetting();
+  if (trustProxy !== undefined) app.set('trust proxy', trustProxy); // IP real atrás do proxy (Render)
   app.use(helmet());
   app.use(cors({ origin: env.CORS_ORIGIN.split(',') }));
   app.use(express.json({ limit: '1mb' }));

@@ -27,6 +27,8 @@ model User {
   passwordHash String
   role         Role           @default(ATTENDANT)
   active       Boolean        @default(true)
+  /// Tokens emitidos antes desta data deixam de valer (troca ou redefinição de senha)
+  passwordChangedAt DateTime?
   createdAt    DateTime       @default(now())
   orders       ServiceOrder[]
   events       StatusEvent[]
@@ -42,6 +44,8 @@ model Customer {
   phone     String?
   email     String?
   notes     String?
+  /// Dados pessoais removidos a pedido do titular (LGPD); o histórico de OS é mantido
+  anonymizedAt DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   vehicles  Vehicle[]
@@ -122,6 +126,8 @@ model CustomerAccess {
   customerId     String    @id
   customer       Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
   pinHash        String
+  /// Sessões iniciadas antes desta data deixam de valer (novo código gerado)
+  pinIssuedAt    DateTime  @default(now())
   failedAttempts Int       @default(0)
   lockedUntil    DateTime?
   updatedAt      DateTime  @updatedAt

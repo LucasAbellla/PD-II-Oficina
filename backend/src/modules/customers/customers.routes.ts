@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { asyncHandler, idParam, paginationSchema } from '../../lib/http.js';
+import { requireRole } from '../../middlewares/auth.js';
 import { validateBody } from '../../middlewares/validate.js';
 import { customerSchema } from './customers.schema.js';
 import * as service from './customers.service.js';
@@ -39,4 +40,11 @@ customersRouter.delete(
     await service.revokeAccess(idParam.parse(req.params).id);
     res.status(204).end();
   }),
+);
+
+// LGPD: remove os dados pessoais do cliente a pedido do titular; veículos e histórico de OS são mantidos
+customersRouter.post(
+  '/:id/anonymize',
+  requireRole('ADMIN'),
+  asyncHandler(async (req, res) => res.json(await service.anonymize(idParam.parse(req.params).id))),
 );
