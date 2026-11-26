@@ -34,7 +34,13 @@ const orders: [string, string, string[], OrderStatus, number, number, number, nu
   ['DEM1A11', 'Cliente desistiu do orçamento', [], 'CANCELED', 1, 0, 0, 20],
 ];
 
+// Em banco remoto (produção) só roda com SEED_DEMO=true: os códigos de demonstração são públicos
+const isLocalDb = /@(localhost|127\.0\.0\.1|\[::1\])(:\d+)?\//.test(process.env.DATABASE_URL ?? '');
+
 async function main() {
+  if (!isLocalDb && process.env.SEED_DEMO !== 'true') {
+    throw new Error('Banco remoto: os dados de demonstração só são criados com SEED_DEMO=true.');
+  }
   const admin = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
   if (!admin) throw new Error('Rode primeiro: npm run seed');
   const pinHash = await bcrypt.hash('123456', 10);
@@ -86,4 +92,9 @@ async function main() {
   console.log('Demo criada: clientes (código 123456), veículos e OS em vários status.');
 }
 
-main().finally(() => prisma.$disconnect());
+main()
+  .catch((e) => {
+    console.error(e instanceof Error ? e.message : e);
+    process.exitCode = 1;
+  })
+  .finally(() => prisma.$disconnect());

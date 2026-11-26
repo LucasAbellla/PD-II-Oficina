@@ -15,11 +15,14 @@ export async function login(input: z.infer<typeof loginSchema>) {
     throw new AppError(401, 'E-mail ou senha inválidos');
   }
   if (!user.active) throw new AppError(403, 'Usuário desativado. Procure o administrador da oficina.');
-  const token = jwt.sign({ role: user.role }, env.JWT_SECRET, {
+  return { token: signToken(user), user: { id: user.id, name: user.name, email: user.email, role: user.role } };
+}
+
+function signToken(user: { id: string; role: string }) {
+  return jwt.sign({ role: user.role }, env.JWT_SECRET, {
     subject: user.id,
     expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'],
   });
-  return { token, user: { id: user.id, name: user.name, email: user.email, role: user.role } };
 }
 
 export async function me(userId: string) {
@@ -50,7 +53,8 @@ export async function updateUser(id: string, input: z.infer<typeof updateUserSch
 
 export async function resetPassword(id: string, password: string) {
   await me(id);
-  await prisma.user.update({ where: { id }, data: { passwordHash: await bcrypt.hash(password, 10) } });
+  // Encerra as sessões abertas do usuário
+  await prisma.user.update({ where: { id }, data: { passwordHash: await bcrypt.hash(password, 10), passwordChangedAt: new Date() } });
 }
 
 export async function changePassword(userId: string, input: z.infer<typeof changePasswordSchema>) {
@@ -59,5 +63,10 @@ export async function changePassword(userId: string, input: z.infer<typeof chang
   if (!(await bcrypt.compare(input.currentPassword, user.passwordHash))) {
     throw new AppError(400, 'Senha atual incorreta', 'currentPassword');
   }
-  await prisma.user.update({ where: { id: userId }, data: { passwordHash: await bcrypt.hash(input.newPassword, 10) } });
+  // Encerra as outras sessões e devolve um token novo para quem trocou a senha
+  await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash: await bcrypt.hash(input.newPassword, 10), passwordChangedAt: new Date() },
+  });
+  return { token: signToken(user) };
 }

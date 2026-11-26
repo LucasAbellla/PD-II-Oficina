@@ -20,6 +20,7 @@ export interface Customer {
   id: string; name: string; document?: string | null; phone?: string | null;
   email?: string | null; notes?: string | null; _count?: { vehicles: number };
   access?: { updatedAt: string } | null;
+  anonymizedAt?: string | null;
 }
 export interface CustomerDetail extends Customer { vehicles: Vehicle[] }
 export interface Vehicle {

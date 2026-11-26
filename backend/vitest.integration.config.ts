@@ -13,6 +13,8 @@ export default defineConfig({
       DATABASE_URL: testDatabaseUrl,
       JWT_SECRET: 'segredo-de-teste-com-mais-de-16-caracteres',
       CORS_ORIGIN: 'http://localhost:5173',
+      // Permite simular IPs diferentes com X-Forwarded-For
+      TRUST_PROXY: 'loopback',
     },
   },
 });

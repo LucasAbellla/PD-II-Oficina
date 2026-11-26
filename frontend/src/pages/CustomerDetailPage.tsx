@@ -1,17 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
+import { useAuth } from '../auth/AuthContext';
 import CustomerForm from '../components/CustomerForm';
 import { useFeedback } from '../components/Feedback';
 import Icon from '../components/Icon';
 import Modal from '../components/Modal';
 import VehicleForm from '../components/VehicleForm';
+import { formatDate } from '../lib/format';
 import type { CustomerDetail } from '../types';
 
 export default function CustomerDetailPage() {
   const { id } = useParams();
   const [params, setParams] = useSearchParams();
   const { toast, confirm } = useFeedback();
+  const { user } = useAuth();
   const [customer, setCustomer] = useState<CustomerDetail | null>(null);
   const [modal, setModal] = useState<'edit' | 'vehicle' | null>(params.get('novoVeiculo') ? 'vehicle' : null);
   const [error, setError] = useState('');
@@ -50,6 +53,21 @@ export default function CustomerDetailPage() {
     }
   };
 
+  const anonymize = async () => {
+    if (!(await confirm({
+      title: 'Anonimizar os dados do cliente?',
+      message: 'Nome, CPF/CNPJ, telefone, e-mail e observações serão apagados e o acesso do cliente e os links de acompanhamento deixam de funcionar. Veículos e histórico de OS são mantidos. Não é possível desfazer.',
+      confirmLabel: 'Anonimizar',
+      danger: true,
+    }))) return;
+    try {
+      setCustomer(await api<CustomerDetail>(`/customers/${id}/anonymize`, { method: 'POST' }));
+      toast('Dados pessoais do cliente removidos');
+    } catch (e) {
+      toast(errorMessage(e), { type: 'error' });
+    }
+  };
+
   if (!customer) return error ? <p className="error">{error}</p> : <p className="loading">Carregando…</p>;
 
   return (
@@ -57,8 +75,13 @@ export default function CustomerDetailPage() {
       <Link to="/clientes" className="back-link"><Icon name="back" size={16} /> Clientes</Link>
       <div className="page-header">
         <h2>{customer.name}</h2>
-        <button className="secondary" onClick={() => setModal('edit')}><Icon name="edit" /> Editar dados</button>
+        {!customer.anonymizedAt && <button className="secondary" onClick={() => setModal('edit')}><Icon name="edit" /> Editar dados</button>}
       </div>
+      {customer.anonymizedAt && (
+        <div className="card" role="status">
+          <p>Dados pessoais removidos em {formatDate(customer.anonymizedAt)} a pedido do titular (LGPD). Veículos e histórico de OS foram mantidos.</p>
+        </div>
+      )}
 
       <div className="info-grid">
         <div className="card">
@@ -78,6 +101,7 @@ export default function CustomerDetailPage() {
       </div>
       {customer.notes && <div className="card"><span className="info-label">Observações</span><p className="pre-line">{customer.notes}</p></div>}
 
+      {!customer.anonymizedAt && <>
       <h3 className="section-title">Acesso do cliente</h3>
       <div className="card">
         <p className="muted">
@@ -91,6 +115,7 @@ export default function CustomerDetailPage() {
           {customer.access && <button className="ghost-danger" onClick={revokeAccess}>Revogar acesso</button>}
         </div>
       </div>
+      </>}
 
       <div className="page-header">
         <h3 className="section-title">Veículos <span className="chip-count">{customer.vehicles.length}</span></h3>
@@ -115,6 +140,18 @@ export default function CustomerDetailPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {user?.role === 'ADMIN' && !customer.anonymizedAt && (
+        <>
+          <h3 className="section-title">Privacidade (LGPD)</h3>
+          <div className="card">
+            <p className="muted">Se o cliente pedir a exclusão dos dados pessoais, anonimize o cadastro. O histórico de serviços dos veículos continua disponível para a oficina.</p>
+            <div className="actions">
+              <button className="ghost-danger" onClick={anonymize}>Anonimizar dados do cliente</button>
+            </div>
+          </div>
+        </>
       )}
 
       {pin && (
