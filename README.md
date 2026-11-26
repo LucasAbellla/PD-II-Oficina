@@ -137,3 +137,12 @@ Decisões de arquitetura e diagramas: [`docs/DECISOES_ARQUITETURA.md`](docs/DECI
 
 ## Privacidade (RNF07)
 Use apenas dados fictícios ou autorizados. Não versione arquivos `.env`.
+
+- **Anonimização (LGPD):** na tela do cliente, o ADMIN pode apagar nome, CPF/CNPJ, telefone, e-mail e observações
+  a pedido do titular (`POST /customers/:id/anonymize`). Veículos e histórico de OS são mantidos; o acesso do cliente
+  e os links de acompanhamento deixam de funcionar.
+- **Sessões:** trocar ou redefinir a senha encerra as outras sessões do funcionário; revogar ou gerar novo código
+  encerra as sessões abertas na área do cliente.
+- **Código de acesso:** 5 erros bloqueiam o acesso por 15 min. A tentativa é reservada no banco antes da conferência,
+  então requisições simultâneas não passam do limite.
+- **Seed:** em banco remoto, exige senha forte para o admin e não cria os dados de demonstração sem `SEED_DEMO=true`.
