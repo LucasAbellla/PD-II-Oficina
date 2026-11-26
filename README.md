@@ -152,3 +152,5 @@ Use apenas dados fictícios ou autorizados. Não versione arquivos `.env`.
 - **Código de acesso:** 5 erros bloqueiam o acesso por 15 min. A tentativa é reservada no banco antes da conferência,
   então requisições simultâneas não passam do limite.
 - **Seed:** em banco remoto, exige senha forte para o admin e não cria os dados de demonstração sem `SEED_DEMO=true`.
+
+Termo de autorização e roteiro da validação com a oficina: [`docs/extensao/`](docs/extensao/).
