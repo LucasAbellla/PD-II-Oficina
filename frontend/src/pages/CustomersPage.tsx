@@ -5,8 +5,12 @@ import CustomerForm from '../components/CustomerForm';
 import { useFeedback } from '../components/Feedback';
 import Icon from '../components/Icon';
 import Modal from '../components/Modal';
+import Presence from '../components/Presence';
+import { LoadError, SkeletonTable } from '../components/Skeleton';
 import { useDebounce } from '../hooks/useDebounce';
 import type { Customer, Paged } from '../types';
+
+const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
 
 export default function CustomersPage() {
   const navigate = useNavigate();
@@ -21,6 +25,7 @@ export default function CustomersPage() {
     try {
       const res = await api<Paged<Customer>>(`/customers?pageSize=100&search=${encodeURIComponent(debounced)}`);
       setItems(res.data);
+      setError('');
     } catch (e) {
       setError(errorMessage(e));
     }
@@ -38,9 +43,9 @@ export default function CustomersPage() {
         <Icon name="search" />
         <input placeholder="Buscar por nome, telefone ou placa…" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
-      {error && <p className="error">{error}</p>}
+      {error && <LoadError message={error} onRetry={load} />}
 
-      {items === null ? <p className="loading">Carregando…</p> : items.length === 0 ? (
+      {items === null ? (!error && <SkeletonTable cols={4} />) : items.length === 0 ? (
         <div className="empty">
           <Icon name="users" size={32} />
           <p>{search ? 'Nenhum cliente encontrado para essa busca.' : 'Nenhum cliente cadastrado ainda.'}</p>
@@ -49,14 +54,19 @@ export default function CustomersPage() {
       ) : (
         <div className="table-wrap">
           <table className="clickable">
-            <thead><tr><th>Nome</th><th>Telefone</th><th>E-mail</th><th>Veículos</th></tr></thead>
+            <thead><tr><th>Nome</th><th>Telefone</th><th className="hide-sm">E-mail</th><th className="right">Veículos</th></tr></thead>
             <tbody>
               {items.map((c) => (
                 <tr key={c.id} onClick={() => navigate(`/clientes/${c.id}`)}>
-                  <td><Link to={`/clientes/${c.id}`} onClick={(e) => e.stopPropagation()}><strong>{c.name}</strong></Link></td>
+                  <td>
+                    <span className="person">
+                      <span className="initials" aria-hidden="true">{initials(c.name)}</span>
+                      <Link to={`/clientes/${c.id}`} onClick={(e) => e.stopPropagation()}><strong>{c.name}</strong></Link>
+                    </span>
+                  </td>
                   <td>{c.phone ?? '—'}</td>
-                  <td>{c.email ?? '—'}</td>
-                  <td>{c._count?.vehicles ?? 0}</td>
+                  <td className="hide-sm">{c.email ?? '—'}</td>
+                  <td className="right">{c._count?.vehicles ?? 0}</td>
                 </tr>
               ))}
             </tbody>
@@ -64,14 +74,14 @@ export default function CustomersPage() {
         </div>
       )}
 
-      {creating && (
+      <Presence>{creating && (
         <Modal title="Novo cliente" onClose={() => setCreating(false)}>
           <CustomerForm
             onCancel={() => setCreating(false)}
             onSaved={(c) => { toast(`${c.name} cadastrado(a). Agora cadastre o veículo.`); navigate(`/clientes/${c.id}?novoVeiculo=1`); }}
           />
         </Modal>
-      )}
+      )}</Presence>
     </>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { clientApi, errorMessage } from '../api/client';
 import Icon from '../components/Icon';
+import { LoadError, SkeletonPage } from '../components/Skeleton';
 import StatusBadge from '../components/StatusBadge';
 import type { ClientVehicleList } from '../types';
 
@@ -20,16 +21,20 @@ export default function ClientVehiclesPage() {
       .catch((e) => setError(errorMessage(e)));
   }, [navigate]);
 
-  if (!data) return error ? <p className="error">{error}</p> : <p className="loading">Carregando…</p>;
+  if (!data) return error ? <LoadError message={error} /> : <SkeletonPage cards={2} />;
 
   return (
     <>
-      <div className="page-header"><h2>Olá, {data.customerName.split(' ')[0]}!</h2></div>
-      <p className="muted">Veículos cadastrados no seu perfil:</p>
+      <div className="page-header">
+        <div>
+          <h2>Olá, {data.customerName.split(' ')[0]}!</h2>
+          <p className="page-sub">Escolha um veículo para ver o andamento e o histórico.</p>
+        </div>
+      </div>
       {data.vehicles.length === 0 && (
         <div className="empty"><Icon name="car" size={32} /><p>Nenhum veículo encontrado.</p></div>
       )}
-      <div className="vehicle-cards">
+      <div className="vehicle-cards stagger">
         {data.vehicles.map((v) => (
           <div className="card vehicle-card" key={v.id}>
             <span className="plate plate-lg">{v.plate}</span>
@@ -37,7 +42,7 @@ export default function ClientVehiclesPage() {
             {v.latestOrder
               ? <p className="muted small">Último atendimento: OS #{v.latestOrder.number} <StatusBadge status={v.latestOrder.status} /></p>
               : <p className="muted small">Sem atendimentos registrados.</p>}
-            <Link to={`/cliente/veiculos/${v.id}`} className="button primary btn-sm">Ver detalhes</Link>
+            <Link to={`/cliente/veiculos/${v.id}`} className="button primary btn-sm">Ver andamento <Icon name="arrow" size={16} /></Link>
           </div>
         ))}
       </div>

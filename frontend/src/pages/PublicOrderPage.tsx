@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import Icon from '../components/Icon';
+import { SkeletonPage } from '../components/Skeleton';
 import StatusBadge from '../components/StatusBadge';
 import StatusTimeline from '../components/StatusTimeline';
 import { formatDate, formatDateTime } from '../lib/format';
@@ -17,25 +18,38 @@ export default function PublicOrderPage() {
     api<PublicOrder>(`/public/orders/${token}`, { auth: false }).then(setData).catch(() => setFailed(true));
   }, [token]);
 
+  const head = (name?: string) => (
+    <header className="cl-head"><div className="brand"><span className="brand-icon"><Icon name="wrench" /></span> {name ?? 'Oficina'}</div></header>
+  );
   if (failed) {
     return (
-      <div className="cl-page"><main className="cl-main">
-        <div className="card"><h2>Link indisponível</h2><p>Este link de acompanhamento é inválido ou expirou. Peça um novo link à oficina.</p></div>
+      <div className="cl-page">{head()}<main className="cl-main">
+        <div className="empty">
+          <Icon name="link" size={28} />
+          <h2>Link indisponível</h2>
+          <p>Este link de acompanhamento é inválido ou expirou. Peça um novo link à oficina.</p>
+        </div>
       </main></div>
     );
   }
-  if (!data) return <div className="cl-page"><main className="cl-main"><p className="loading">Carregando…</p></main></div>;
+  if (!data) return <div className="cl-page">{head()}<main className="cl-main"><SkeletonPage cards={2} /></main></div>;
 
   const { order, vehicle } = data;
   return (
     <div className="cl-page">
-      <header className="cl-head"><div className="brand"><span className="brand-icon"><Icon name="wrench" /></span> {data.workshop}</div></header>
+      {head(data.workshop)}
       <main className="cl-main">
-        <p className="muted small">Acompanhamento de serviço</p>
-        <div className="card">
-          <p><strong>OS #{order.number}</strong> <StatusBadge status={order.status} /></p>
-          <p>{vehicle.brand} {vehicle.model} {vehicle.year ?? ''} {vehicle.color ? `· ${vehicle.color}` : ''} · Placa <span className="plate">{vehicle.plate}</span></p>
-          <p className="muted pre-line">Problema relatado: {order.description}</p>
+        <div className="card card-featured">
+          <div className="status-hero">
+            <div>
+              <span className="muted small">Acompanhamento de serviço</span>
+              <h2>OS #{order.number}</h2>
+            </div>
+            <StatusBadge status={order.status} />
+          </div>
+          <p><span className="plate">{vehicle.plate}</span> {vehicle.brand} {vehicle.model} {vehicle.year ?? ''}{vehicle.color ? `, ${vehicle.color}` : ''}</p>
+          <span className="info-label cl-gap">Problema relatado</span>
+          <p className="pre-line">{order.description}</p>
           <StatusTimeline status={order.status} events={data.timeline} />
         </div>
 
@@ -54,7 +68,7 @@ export default function PublicOrderPage() {
         {data.history.map((h) => (
           <div className="card" key={h.number}>
             <strong>OS #{h.number}</strong> <span className="muted small">{formatDate(h.openedAt)}</span>
-            <ul className="cl-list">{h.services.map((s, idx) => <li key={idx}>{s}</li>)}</ul>
+            <ul className="cl-list">{h.services.map((s, idx) => <li key={idx}><Icon name="check" size={14} /> {s}</li>)}</ul>
           </div>
         ))}
 

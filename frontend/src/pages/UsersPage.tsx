@@ -6,6 +6,8 @@ import { useFeedback } from '../components/Feedback';
 import Icon from '../components/Icon';
 import Modal from '../components/Modal';
 import PasswordForm from '../components/PasswordForm';
+import Presence from '../components/Presence';
+import { LoadError, SkeletonTable } from '../components/Skeleton';
 import UserForm from '../components/UserForm';
 import { formatDate } from '../lib/format';
 import { ROLE_LABEL, type User } from '../types';
@@ -23,6 +25,7 @@ export default function UsersPage() {
   const load = useCallback(async () => {
     try {
       setUsers(await api<User[]>('/auth/users'));
+      setError('');
     } catch (e) {
       setError(errorMessage(e));
     }
@@ -38,24 +41,31 @@ export default function UsersPage() {
   return (
     <>
       <div className="page-header">
-        <h2>Usuários</h2>
+        <div>
+          <h2>Usuários</h2>
+          <p className="page-sub">Cada funcionário da oficina deve ter o próprio login.</p>
+        </div>
         <button className="primary" onClick={() => setModal({ type: 'new' })}><Icon name="plus" /> Novo usuário</button>
       </div>
-      <p className="muted">Cada funcionário da oficina deve ter o próprio login. Usuários desativados não conseguem entrar, mas as OS que abriram continuam no histórico.</p>
-      {error && <p className="error">{error}</p>}
+      {error && <LoadError message={error} onRetry={load} />}
 
-      {users === null ? <p className="loading">Carregando…</p> : (
+      {users === null ? (!error && <SkeletonTable cols={6} rows={3} />) : (
         <div className="table-wrap">
           <table>
-            <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Situação</th><th>Desde</th><th className="right">Ações</th></tr></thead>
+            <thead><tr><th>Nome</th><th className="hide-sm">E-mail</th><th>Perfil</th><th>Situação</th><th className="hide-sm">Desde</th><th className="right">Ações</th></tr></thead>
             <tbody>
               {users.map((u) => (
                 <tr key={u.id} className={u.active ? '' : 'inactive'}>
-                  <td><strong>{u.name}</strong>{u.id === me.id && <span className="muted"> (você)</span>}</td>
-                  <td>{u.email}</td>
+                  <td>
+                    <span className="person">
+                      <span className="initials" aria-hidden="true">{u.name.charAt(0).toUpperCase()}</span>
+                      <span><strong>{u.name}</strong>{u.id === me.id && <span className="muted"> (você)</span>}</span>
+                    </span>
+                  </td>
+                  <td className="hide-sm">{u.email}</td>
                   <td><span className={`badge ${u.role === 'ADMIN' ? 'badge-admin' : ''}`}>{ROLE_LABEL[u.role]}</span></td>
                   <td>{u.active ? <span className="status-dot on">Ativo</span> : <span className="status-dot off">Desativado</span>}</td>
-                  <td>{u.createdAt && formatDate(u.createdAt)}</td>
+                  <td className="hide-sm">{u.createdAt && formatDate(u.createdAt)}</td>
                   <td>
                     <div className="row-actions">
                       <button className="icon-btn" title="Editar" aria-label={`Editar ${u.name}`} onClick={() => setModal({ type: 'edit', user: u })}><Icon name="edit" /></button>
@@ -71,22 +81,24 @@ export default function UsersPage() {
         </div>
       )}
 
-      {modal?.type === 'new' && (
+      <p className="muted small cl-gap">Usuários desativados não conseguem entrar, mas as OS que abriram continuam no histórico.</p>
+
+      <Presence>{modal?.type === 'new' && (
         <Modal title="Novo usuário" onClose={close}>
           <UserForm onCancel={close} onSaved={(u) => saved(`Usuário ${u.name} criado`)} />
         </Modal>
-      )}
-      {modal?.type === 'edit' && (
+      )}</Presence>
+      <Presence>{modal?.type === 'edit' && (
         <Modal title={`Editar ${modal.user.name}`} onClose={close}>
           <UserForm user={modal.user} isSelf={modal.user.id === me.id} onCancel={close} onSaved={() => saved('Usuário atualizado')} />
         </Modal>
-      )}
-      {modal?.type === 'password' && (
+      )}</Presence>
+      <Presence>{modal?.type === 'password' && (
         <Modal title={`Nova senha para ${modal.user.name}`} onClose={close} small>
           <p className="muted">Informe a nova senha ao funcionário. Ele poderá trocá-la depois em "Alterar senha".</p>
           <PasswordForm mode="reset" userId={modal.user.id} onCancel={close} onSaved={() => saved(`Senha de ${modal.user.name} redefinida`)} />
         </Modal>
-      )}
+      )}</Presence>
     </>
   );
 }
