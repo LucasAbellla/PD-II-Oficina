@@ -4,9 +4,17 @@ import 'dotenv/config';
 
 const prisma = new PrismaClient();
 
+// Banco local (docker compose): pode usar a senha padrão e criar os dados de demonstração.
+// Banco remoto (produção): exige SEED_ADMIN_PASSWORD e só cria dados de demonstração com SEED_DEMO=true.
+const isLocalDb = /@(localhost|127\.0\.0\.1|\[::1\])(:\d+)?\//.test(process.env.DATABASE_URL ?? '');
+
 async function main() {
   const email = process.env.SEED_ADMIN_EMAIL ?? 'admin@oficina.local';
-  const password = process.env.SEED_ADMIN_PASSWORD ?? 'admin12345';
+  const password = process.env.SEED_ADMIN_PASSWORD ?? (isLocalDb ? 'admin12345' : undefined);
+  if (!password || (!isLocalDb && password.length < 12)) {
+    throw new Error('Banco remoto: defina SEED_ADMIN_PASSWORD com ao menos 12 caracteres.');
+  }
+  const withDemo = isLocalDb || process.env.SEED_DEMO === 'true';
 
   const admin = await prisma.user.upsert({
     where: { email },
@@ -18,6 +26,11 @@ async function main() {
       role: 'ADMIN',
     },
   });
+
+  if (!withDemo) {
+    console.log(`Seed concluído. Funcionário: ${email} (sem dados de demonstração)`);
+    return;
+  }
 
   // Dados FICTÍCIOS para demonstração (RNF07 - nunca usar dados pessoais reais sem autorização)
   const existingCustomer = await prisma.customer.findFirst({ where: { email: 'cliente@exemplo.com' } });
@@ -60,4 +73,9 @@ async function main() {
   console.log(`Seed concluído. Funcionário: ${email} | Cliente demo: placa ABC1D23 ou CPF 529.982.247-25, código 123456`);
 }
 
-main().finally(() => prisma.$disconnect());
+main()
+  .catch((e) => {
+    console.error(e instanceof Error ? e.message : e);
+    process.exitCode = 1;
+  })
+  .finally(() => prisma.$disconnect());
