@@ -52,10 +52,8 @@ Assinatura: ____________________________________________
 Li ou ouvi a explicação acima e concordo em participar da sessão de validação.
 
 | Código | Nome | Autorizo foto em que apareço? | Assinatura | Data |
-|---|---|---|---|---|
-| P1 | | ☐ sim ☐ não | | ___/___/2026 |
-| P2 | | ☐ sim ☐ não | | ___/___/2026 |
-| P3 | | ☐ sim ☐ não | | ___/___/2026 |
+|-----------------------|--------------|-----------------|--------------|
+| P1 |                  | ☐ sim ☐ não |                 | ___/___/2026 |
+| P2 |                  | ☐ sim ☐ não |                 | ___/___/2026 |
+| P3 |                  | ☐ sim ☐ não |                 | ___/___/2026 |
 
-Este termo assinado fica com a equipe e entra no pacote de evidências (Apêndice D do artigo). O nome dos
-participantes só aparece aqui; nas demais folhas usa-se o código.
