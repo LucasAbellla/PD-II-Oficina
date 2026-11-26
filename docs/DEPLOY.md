@@ -1,5 +1,7 @@
 # Publicação (deploy)
 
+Produção: aplicação em https://pd-ii-oficina.vercel.app e API em https://oficina-api-os65.onrender.com/api.
+
 Backend + PostgreSQL na **Render** (definidos em `render.yaml`) e frontend na **Vercel** (`frontend/vercel.json`).
 A Render só publica um commit da `main` depois que o CI passa; a Vercel publica a cada push na `main` e gera uma
 prévia para cada PR.
@@ -30,7 +32,18 @@ cd backend
 $env:DATABASE_URL="<external database url>"; $env:SEED_ADMIN_PASSWORD="<senha forte>"; npm run seed
 ```
 
-**Troque a senha no primeiro acesso.**
+Em banco remoto o seed exige `SEED_ADMIN_PASSWORD` com ao menos 12 caracteres e **não** cria os dados de
+demonstração (código `123456`, que está no repositório público). Para uma base de apresentação, use
+`SEED_DEMO=true` de propósito e revogue esses códigos antes de cadastrar clientes reais.
+
+**Troque a senha no primeiro acesso.** Trocar ou redefinir a senha encerra as outras sessões do usuário.
+
+### IP real e limite de tentativas
+Os limites de login contam tentativas por IP. Atrás do proxy da Render, a API usa `trust proxy = 1` (variável
+`TRUST_PROXY`, opcional). Cada login de funcionário grava no log da Render uma linha
+`[login] usuario=... ip=... x-forwarded-for="..."`. Depois de entrar, confira se o `ip` é o seu IP público. Se for
+um IP interno (10.x, 172.16–31.x), ajuste `TRUST_PROXY` para o número de endereços que vêm depois do seu em
+`x-forwarded-for` + 1.
 
 ## 2) Frontend (Vercel)
 1. *Add New → Project*, este repositório. Na tela de importação, use **Import single project** na pasta `frontend`
@@ -40,6 +53,11 @@ $env:DATABASE_URL="<external database url>"; $env:SEED_ADMIN_PASSWORD="<senha fo
 
 O `frontend/vercel.json` redireciona qualquer rota para o `index.html` (necessário para `/cliente`,
 `/acompanhar/<token>` e demais rotas funcionarem ao abrir o link direto ou atualizar a página).
+
+### Cabeçalhos de segurança do frontend
+O `frontend/vercel.json` define CSP, `X-Frame-Options`, `Referrer-Policy` e `Permissions-Policy`. A CSP só permite
+chamadas para a própria origem e para `https://oficina-api-os65.onrender.com`; **se a URL da API mudar, atualize o
+`connect-src`**, senão o sistema não consegue falar com a API.
 
 ## 3) Limites do plano gratuito
 - A API "dorme" após 15 min sem uso; a primeira requisição leva cerca de 1 min. Abra o sistema antes de apresentar.

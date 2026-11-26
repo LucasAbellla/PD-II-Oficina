@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink, Navigate, Outlet } from 'react-router-dom';
+import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { ROLE_LABEL } from '../types';
 import { useFeedback } from './Feedback';
@@ -7,10 +7,12 @@ import GlobalSearch from './GlobalSearch';
 import Icon, { type IconName } from './Icon';
 import Modal from './Modal';
 import PasswordForm from './PasswordForm';
+import Presence from './Presence';
 
-const NAV: { to: string; label: string; icon: IconName; adminOnly?: boolean }[] = [
+// short: rótulo usado na barra inferior do celular
+const NAV: { to: string; label: string; short?: string; icon: IconName; adminOnly?: boolean }[] = [
   { to: '/painel', label: 'Painel', icon: 'chart' },
-  { to: '/os', label: 'Ordens de serviço', icon: 'clipboard' },
+  { to: '/os', label: 'Ordens de serviço', short: 'OS', icon: 'clipboard' },
   { to: '/clientes', label: 'Clientes', icon: 'users' },
   { to: '/veiculos', label: 'Veículos', icon: 'car' },
   { to: '/usuarios', label: 'Usuários', icon: 'shield', adminOnly: true },
@@ -19,17 +21,21 @@ const NAV: { to: string; label: string; icon: IconName; adminOnly?: boolean }[] 
 export default function Layout() {
   const { user, loading, logout } = useAuth();
   const { toast } = useFeedback();
+  const { pathname } = useLocation();
   const [changingPassword, setChangingPassword] = useState(false);
-  if (loading) return <p className="loading center">Carregando…</p>;
+  if (loading) return <p className="loading center" role="status">Carregando…</p>;
   if (!user) return <Navigate to="/login" replace />;
 
   return (
     <div className="app">
       <aside className="sidebar">
         <div className="brand"><span className="brand-icon"><Icon name="wrench" /></span> Oficina</div>
-        <nav>
+        <nav aria-label="Menu principal">
           {NAV.filter((n) => !n.adminOnly || user.role === 'ADMIN').map((n) => (
-            <NavLink key={n.to} to={n.to}><Icon name={n.icon} /> <span>{n.label}</span></NavLink>
+            <NavLink key={n.to} to={n.to}>
+              <Icon name={n.icon} />
+              {n.short ? <span><span className="nav-long">{n.label}</span><span className="nav-short">{n.short}</span></span> : <span>{n.label}</span>}
+            </NavLink>
           ))}
         </nav>
         <div className="user">
@@ -40,17 +46,25 @@ export default function Layout() {
         </div>
       </aside>
       <div className="main">
-        <header className="topbar"><GlobalSearch /></header>
-        <main className="container">
+        <header className="topbar">
+          <span className="brand-icon mobile-brand" aria-hidden="true"><Icon name="wrench" size={16} /></span>
+          <GlobalSearch />
+          {pathname !== '/os' && (
+            <Link to="/os?nova=1" className="button primary topbar-new" aria-label="Nova OS"><Icon name="plus" /> <span>Nova OS</span></Link>
+          )}
+          <button className="icon-btn mobile-only" onClick={() => setChangingPassword(true)} title="Alterar senha" aria-label="Alterar senha"><Icon name="key" /></button>
+          <button className="icon-btn mobile-only" onClick={logout} title="Sair" aria-label="Sair"><Icon name="logout" /></button>
+        </header>
+        <main key={pathname} className="container page-enter">
           <Outlet />
         </main>
       </div>
-      {changingPassword && (
+      <Presence>{changingPassword && (
         <Modal title="Alterar minha senha" onClose={() => setChangingPassword(false)} small>
           <PasswordForm mode="change" onCancel={() => setChangingPassword(false)}
             onSaved={() => { setChangingPassword(false); toast('Senha alterada com sucesso'); }} />
         </Modal>
-      )}
+      )}</Presence>
     </div>
   );
 }

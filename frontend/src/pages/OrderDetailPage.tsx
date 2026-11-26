@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { api, downloadPdf, errorMessage, uploadPdf } from '../api/client';
 import { useFeedback } from '../components/Feedback';
 import Icon from '../components/Icon';
+import { LoadError, SkeletonPage } from '../components/Skeleton';
 import StatusBadge from '../components/StatusBadge';
 import StatusStepper from '../components/StatusStepper';
 import { formatDate, formatDateTime, formatKm } from '../lib/format';
@@ -24,12 +25,14 @@ export default function OrderDetailPage() {
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [item, setItem] = useState({ description: '', notes: '' });
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
+  // Guarda qual ação está em andamento para mostrar o indicador no botão certo
+  const [busy, setBusy] = useState<string | false>(false);
   const itemInput = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     try {
       setOrder(await api<OrderDetail>(`/service-orders/${id}`));
+      setError('');
     } catch (e) {
       setError(errorMessage(e));
     }
@@ -37,9 +40,9 @@ export default function OrderDetailPage() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const run = async (fn: () => Promise<unknown>, success: string) => {
+  const run = async (fn: () => Promise<unknown>, success: string, key = 'action') => {
     setError('');
-    setBusy(true);
+    setBusy(key);
     try {
       await fn();
       await load();
@@ -62,13 +65,13 @@ export default function OrderDetailPage() {
       title: 'Confirmar entrega do veículo?', message: 'Depois de entregue, a OS fica encerrada e não aceita mais alterações.',
       confirmLabel: 'Confirmar entrega',
     }))) return;
-    await run(() => api(`/service-orders/${id}/status`, { method: 'PATCH', body: { status } }), `Status alterado para ${STATUS_LABEL[status]}`);
+    await run(() => api(`/service-orders/${id}/status`, { method: 'PATCH', body: { status } }), `Status alterado para ${STATUS_LABEL[status]}`, `status-${status}`);
   };
 
   const addItem = async (e: FormEvent) => {
     e.preventDefault();
     if (item.description.trim().length < 2) return itemInput.current?.focus();
-    const ok = await run(() => api(`/service-orders/${id}/items`, { method: 'POST', body: item }), 'Serviço registrado');
+    const ok = await run(() => api(`/service-orders/${id}/items`, { method: 'POST', body: item }), 'Serviço registrado', 'item');
     if (ok) {
       setItem({ description: '', notes: '' });
       itemInput.current?.focus();
@@ -80,7 +83,7 @@ export default function OrderDetailPage() {
     await run(() => api(`/service-orders/${id}/items/${itemId}`, { method: 'DELETE' }), 'Serviço removido');
   };
 
-  const share = () => run(() => api(`/service-orders/${id}/share`, { method: 'POST' }), 'Link de acompanhamento gerado');
+  const share = () => run(() => api(`/service-orders/${id}/share`, { method: 'POST' }), 'Link de acompanhamento gerado', 'share');
   const revokeLink = async () => {
     if (!(await confirm({ title: 'Revogar o link?', message: 'Quem tiver o link deixará de conseguir ver esta OS.', confirmLabel: 'Revogar', danger: true }))) return;
     await run(() => api(`/service-orders/${id}/share`, { method: 'DELETE' }), 'Link revogado');
@@ -96,7 +99,7 @@ export default function OrderDetailPage() {
     if (!file) return;
     if (file.type !== 'application/pdf') return toast('Envie um arquivo PDF.', { type: 'error' });
     if (file.size > 5 * 1024 * 1024) return toast('O PDF deve ter no máximo 5 MB.', { type: 'error' });
-    void run(() => uploadPdf(`/service-orders/${id}/invoice`, file), 'Nota fiscal anexada');
+    void run(() => uploadPdf(`/service-orders/${id}/invoice`, file), 'Nota fiscal anexada', 'invoice');
   };
   const downloadInvoice = async (name: string) => {
     try {
@@ -110,7 +113,7 @@ export default function OrderDetailPage() {
     await run(() => api(`/service-orders/${id}/invoice`, { method: 'DELETE' }), 'Nota fiscal removida');
   };
 
-  if (!order) return error ? <p className="error">{error}</p> : <p className="loading">Carregando…</p>;
+  if (!order) return error ? <LoadError message={error} onRetry={() => void load()} /> : <SkeletonPage cards={3} />;
   const closed = order.status === 'DELIVERED' || order.status === 'CANCELED';
   const forward = order.allowedTransitions.filter((s) => s !== 'CANCELED');
   const { vehicle } = order;
@@ -125,142 +128,155 @@ export default function OrderDetailPage() {
   return (
     <>
       <Link to="/os" className="back-link"><Icon name="back" size={16} /> Ordens de serviço</Link>
-      <div className="page-header">
-        <h2>OS #{order.number} <StatusBadge status={order.status} /></h2>
-        <div className="actions">
-          {forward.map((s, i) => (
-            <button key={s} className={i === 0 ? 'primary' : 'secondary'} disabled={busy} onClick={() => changeStatus(s)}>
-              {actionLabel(order.status, s)}
-            </button>
-          ))}
-          {order.allowedTransitions.includes('CANCELED') && (
-            <button className="ghost-danger" disabled={busy} onClick={() => changeStatus('CANCELED')}>Cancelar OS</button>
-          )}
-        </div>
-      </div>
-
-      <StatusStepper status={order.status} />
-
-      <div className="info-grid">
-        <div className="card">
-          <span className="info-label">Veículo</span>
-          <p><span className="plate">{vehicle.plate}</span> {vehicle.brand} {vehicle.model} {vehicle.year ?? ''}</p>
-          <Link to={`/veiculos/${vehicle.id}/historico`} className="small-link"><Icon name="history" size={14} /> Ver histórico do veículo</Link>
-        </div>
-        <div className="card">
-          <span className="info-label">Cliente</span>
-          <p><Link to={`/clientes/${vehicle.customer.id}`}>{vehicle.customer.name}</Link></p>
-          {vehicle.customer.phone && (
-            <a href={`tel:${vehicle.customer.phone.replace(/\D/g, '')}`} className="small-link"><Icon name="phone" size={14} /> {vehicle.customer.phone}</a>
-          )}
-        </div>
-        <div className="card">
-          <span className="info-label">Entrada</span>
-          <p>{formatDateTime(order.openedAt)} · {formatKm(order.mileageIn)}</p>
-          <span className="muted small">
-            por {order.createdBy.name}{order.closedAt && ` · encerrada em ${formatDateTime(order.closedAt)}`}
-          </span>
-        </div>
-      </div>
-
-      <div className="card">
-        <span className="info-label">Problema relatado</span>
-        <p className="pre-line">{order.description}</p>
-      </div>
-
-      <h3 className="section-title">Serviços realizados <span className="chip-count">{order.items.length}</span></h3>
-      {!closed && (
-        <form className="card add-item" onSubmit={addItem}>
-          <div className="add-item-row">
-            <input ref={itemInput} value={item.description} onChange={(e) => setItem({ ...item, description: e.target.value })}
-              placeholder="Serviço realizado (ex.: troca de óleo)" aria-label="Serviço realizado" />
-            <input value={item.notes} onChange={(e) => setItem({ ...item, notes: e.target.value })}
-              placeholder="Observações (opcional)" aria-label="Observações" />
-            <button className="primary" disabled={busy}><Icon name="plus" /> Adicionar</button>
-          </div>
-          <div className="suggestions">
-            {SUGGESTIONS.map((s) => (
-              <button type="button" key={s} className="chip" onClick={() => { setItem({ ...item, description: s }); itemInput.current?.focus(); }}>{s}</button>
-            ))}
-          </div>
-        </form>
-      )}
-      <ul className="items">
-        {order.items.map((i) => (
-          <li key={i.id}>
-            <span className="item-check"><Icon name="check" size={14} /></span>
-            <div className="item-body">
-              <strong>{i.description}</strong>
-              {i.notes && <span className="muted"> — {i.notes}</span>}
-              <small className="muted">{formatDateTime(i.performedAt)}</small>
+      <section className="card os-hero">
+        <div className="page-header">
+          <div>
+            <h2>OS #{order.number} <StatusBadge status={order.status} /></h2>
+            <div className="os-hero-meta">
+              <span className="plate">{vehicle.plate}</span>
+              <span>{vehicle.brand} {vehicle.model} {vehicle.year ?? ''}</span>
+              <span>{vehicle.customer.name}</span>
             </div>
-            {!closed && (
-              <button className="icon-btn" title="Remover serviço" aria-label={`Remover ${i.description}`} onClick={() => removeItem(i.id, i.description)}>
-                <Icon name="trash" size={16} />
+          </div>
+          <div className="actions">
+            {forward.map((s, i) => (
+              <button key={s} className={i === 0 ? 'primary' : 'secondary'} disabled={!!busy} aria-busy={busy === `status-${s}`} onClick={() => changeStatus(s)}>
+                {actionLabel(order.status, s)}
               </button>
+            ))}
+            {order.allowedTransitions.includes('CANCELED') && (
+              <button className="ghost-danger" disabled={!!busy} onClick={() => changeStatus('CANCELED')}>Cancelar OS</button>
             )}
-          </li>
-        ))}
-        {order.items.length === 0 && <li className="muted empty-item">Nenhum serviço registrado ainda.</li>}
-      </ul>
+          </div>
+        </div>
+        <StatusStepper status={order.status} />
+      </section>
 
-      <h3 className="section-title">Nota fiscal</h3>
-      <div className="card">
-        {order.invoice ? (
-          <>
-            <p><Icon name="file" size={16} /> <strong>{order.invoice.fileName}</strong>{' '}
-              <span className="muted small">· {Math.max(1, Math.round(order.invoice.sizeBytes / 1024))} KB · enviada em {formatDateTime(order.invoice.uploadedAt)}</span></p>
-            <div className="actions">
-              <button className="secondary" onClick={() => downloadInvoice(order.invoice!.fileName)}><Icon name="download" size={16} /> Baixar</button>
-              <button className="ghost-danger" disabled={busy} onClick={removeInvoice}><Icon name="trash" size={16} /> Remover</button>
-            </div>
-          </>
-        ) : (
-          <p className="muted">Nenhuma nota fiscal anexada.</p>
-        )}
-        {ready ? (
-          <label className="file-input">{order.invoice ? 'Substituir PDF' : 'Anexar nota fiscal (PDF, até 5 MB)'}
-            <input type="file" accept="application/pdf" onChange={onInvoiceFile} disabled={busy} />
-          </label>
-        ) : (
-          <p className="muted small">O envio fica disponível quando a OS estiver Concluída ou Entregue.</p>
-        )}
-        <p className="muted small">O cliente só vê e baixa a nota fiscal na área dele quando a OS estiver Concluída ou Entregue.</p>
-      </div>
+      <div className="detail-layout">
+        <div className="detail-main">
+          <div className="card">
+            <span className="info-label">Problema relatado</span>
+            <p className="pre-line problem">{order.description}</p>
+          </div>
 
-      <h3 className="section-title">Acompanhamento pelo cliente</h3>
-      <div className="card">
-        <p className="muted">Gere um link somente leitura para o cliente ver o status, os serviços e o histórico do veículo, sem login.</p>
-        {linkActive ? (
-          <>
-            <input readOnly value={link} onFocus={(e) => e.target.select()} aria-label="Link de acompanhamento" />
-            <p className="muted small">Válido até {formatDate(order.publicTokenExpiresAt!)}</p>
-            <div className="actions">
-              <button className="primary" onClick={() => copyLink(link)}><Icon name="link" size={16} /> Copiar link</button>
-              <a className="button secondary" href={wa} target="_blank" rel="noreferrer"><Icon name="phone" size={16} /> Enviar pelo WhatsApp</a>
-              <button className="secondary" disabled={busy} onClick={share}>Gerar novo link</button>
-              <button className="ghost-danger" disabled={busy} onClick={revokeLink}>Revogar</button>
-            </div>
-          </>
-        ) : (
-          <button className="primary" disabled={busy} onClick={share}><Icon name="link" size={16} /> Gerar link de acompanhamento</button>
-        )}
-      </div>
-
-      <h3 className="section-title">Linha do tempo <span className="chip-count">{order.events.length}</span></h3>
-      <ul className="timeline">
-        {order.events.map((e) => (
-          <li key={e.id}>
-            <div className="card">
-              <div className="timeline-head">
-                <StatusBadge status={e.toStatus} />
-                <strong>{formatDateTime(e.createdAt)}</strong>
-                {e.by && <span className="muted small">por {e.by}</span>}
+          <h3 className="section-title">Serviços realizados <span className="chip-count">{order.items.length}</span></h3>
+          {!closed && (
+            <form className="card add-item" onSubmit={addItem}>
+              <div className="add-item-row">
+                <input ref={itemInput} value={item.description} onChange={(e) => setItem({ ...item, description: e.target.value })}
+                  placeholder="Serviço realizado (ex.: troca de óleo)" aria-label="Serviço realizado" />
+                <input value={item.notes} onChange={(e) => setItem({ ...item, notes: e.target.value })}
+                  placeholder="Observações (opcional)" aria-label="Observações" />
+                <button className="primary" disabled={!!busy} aria-busy={busy === 'item'}><Icon name="plus" /> Adicionar</button>
               </div>
-            </div>
-          </li>
-        ))}
-      </ul>
+              <div className="suggestions">
+                {SUGGESTIONS.map((s) => (
+                  <button type="button" key={s} className="chip" onClick={() => { setItem({ ...item, description: s }); itemInput.current?.focus(); }}>{s}</button>
+                ))}
+              </div>
+            </form>
+          )}
+          <ul className="items">
+            {order.items.map((i) => (
+              <li key={i.id}>
+                <span className="item-check"><Icon name="check" size={14} /></span>
+                <div className="item-body">
+                  <strong>{i.description}</strong>
+                  {i.notes && <span className="muted">{i.notes}</span>}
+                  <small className="muted">{formatDateTime(i.performedAt)}</small>
+                </div>
+                {!closed && (
+                  <button className="icon-btn" title="Remover serviço" aria-label={`Remover ${i.description}`} onClick={() => removeItem(i.id, i.description)}>
+                    <Icon name="trash" size={16} />
+                  </button>
+                )}
+              </li>
+            ))}
+            {order.items.length === 0 && <li className="muted empty-item">Nenhum serviço registrado ainda.</li>}
+          </ul>
+
+          <h3 className="section-title">Linha do tempo <span className="chip-count">{order.events.length}</span></h3>
+          <div className="card">
+            <ul className="event-list">
+              {[...order.events].reverse().map((e) => (
+                <li key={e.id}>
+                  <StatusBadge status={e.toStatus} />
+                  <strong>{formatDateTime(e.createdAt)}</strong>
+                  {e.by && <span className="muted small">por {e.by}</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <aside className="detail-aside">
+          <div className="card">
+            <span className="info-label">Veículo</span>
+            <p><span className="plate">{vehicle.plate}</span> {vehicle.brand} {vehicle.model} {vehicle.year ?? ''}</p>
+            <Link to={`/veiculos/${vehicle.id}/historico`} className="small-link"><Icon name="history" size={14} /> Ver histórico do veículo</Link>
+            <hr className="aside-divider" />
+            <span className="info-label">Cliente</span>
+            <p><Link to={`/clientes/${vehicle.customer.id}`}>{vehicle.customer.name}</Link></p>
+            {vehicle.customer.phone && (
+              <a href={`tel:${vehicle.customer.phone.replace(/\D/g, '')}`} className="small-link"><Icon name="phone" size={14} /> {vehicle.customer.phone}</a>
+            )}
+          </div>
+          <div className="card">
+            <span className="info-label">Entrada</span>
+            <p>{formatDateTime(order.openedAt)}</p>
+            <p className="muted small">{formatKm(order.mileageIn)}, registrada por {order.createdBy.name}</p>
+            {order.closedAt && <p className="muted small">Encerrada em {formatDateTime(order.closedAt)}</p>}
+          </div>
+
+          <div className="card">
+            <h3 className="card-title"><Icon name="file" /> Nota fiscal</h3>
+            {order.invoice ? (
+              <>
+                <p><strong>{order.invoice.fileName}</strong></p>
+                <p className="muted small">{Math.max(1, Math.round(order.invoice.sizeBytes / 1024))} KB, enviada em {formatDateTime(order.invoice.uploadedAt)}</p>
+                <div className="actions">
+                  <button className="secondary btn-sm" onClick={() => downloadInvoice(order.invoice!.fileName)}><Icon name="download" size={16} /> Baixar</button>
+                  <button className="ghost-danger btn-sm" disabled={!!busy} onClick={removeInvoice}><Icon name="trash" size={16} /> Remover</button>
+                </div>
+              </>
+            ) : (
+              <p className="muted">Nenhuma nota fiscal anexada.</p>
+            )}
+            {ready ? (
+              <label className="file-input" aria-busy={busy === 'invoice'}>
+                <span className="icon-tile">{busy === 'invoice' ? <span className="spinner" /> : <Icon name="upload" />}</span>
+                <span>
+                  {order.invoice ? 'Substituir PDF' : 'Anexar nota fiscal'}
+                  <small>Clique para escolher um PDF de até 5 MB</small>
+                </span>
+                <input type="file" accept="application/pdf" onChange={onInvoiceFile} disabled={!!busy} />
+              </label>
+            ) : (
+              <p className="muted small">O envio fica disponível quando a OS estiver Concluída ou Entregue.</p>
+            )}
+            <p className="muted small">O cliente só vê e baixa a nota fiscal quando a OS estiver Concluída ou Entregue.</p>
+          </div>
+
+          <div className="card">
+            <h3 className="card-title"><Icon name="link" /> Acompanhamento</h3>
+            <p className="muted small">Link somente leitura para o cliente ver o status, os serviços e o histórico do veículo, sem login.</p>
+            {linkActive ? (
+              <>
+                <input readOnly value={link} onFocus={(e) => e.target.select()} aria-label="Link de acompanhamento" />
+                <p className="muted small">Válido até {formatDate(order.publicTokenExpiresAt!)}</p>
+                <div className="actions">
+                  <button className="primary btn-sm" onClick={() => copyLink(link)}><Icon name="link" size={16} /> Copiar link</button>
+                  <a className="button secondary btn-sm" href={wa} target="_blank" rel="noreferrer"><Icon name="phone" size={16} /> WhatsApp</a>
+                  <button className="secondary btn-sm" disabled={!!busy} aria-busy={busy === 'share'} onClick={share}>Gerar novo link</button>
+                  <button className="ghost-danger btn-sm" disabled={!!busy} onClick={revokeLink}>Revogar</button>
+                </div>
+              </>
+            ) : (
+              <button className="primary" disabled={!!busy} aria-busy={busy === 'share'} onClick={share}><Icon name="link" size={16} /> Gerar link</button>
+            )}
+          </div>
+        </aside>
+      </div>
     </>
   );
 }

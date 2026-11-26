@@ -5,6 +5,12 @@
 Projeto de Desenvolvimento II (Unisenac, 2026/2) — MVP para pequenas oficinas mecânicas:
 clientes → veículos → ordens de serviço → serviços realizados → histórico do veículo.
 
+## Sistema publicado
+- Aplicação: https://pd-ii-oficina.vercel.app
+- API: https://oficina-api-os65.onrender.com/api (saúde: `/api/health`)
+
+No plano gratuito a API dorme após 15 min sem uso; o primeiro acesso pode levar cerca de 1 min.
+
 ## Stack
 - **Frontend:** React 18 + TypeScript + Vite + React Router
 - **Backend:** Node.js + Express + TypeScript (Zod para validação, JWT para autenticação)
@@ -44,7 +50,7 @@ Dados de demonstração para capturas de tela (fictícios): `npm run seed && npm
 | Comando | Onde | O que cobre |
 |---|---|---|
 | `npm test` | backend | Regras de status, validações, CPF, linha do tempo, métricas e rotas sem banco |
-| `npm run test:integration` | backend | Fluxo T1–T6 da validação e regras de negócio contra o PostgreSQL |
+| `npm run test:integration` | backend | Fluxo T1–T6, regras de negócio, área do cliente (login, bloqueio, escopo), link público e nota fiscal contra o PostgreSQL |
 | `npm test` | frontend | Máscaras/formatação e cliente HTTP |
 | `npm run typecheck` | ambos | Verificação de tipos |
 
@@ -132,6 +138,19 @@ um commit da `main` depois que o CI passa. Passo a passo em [`docs/DEPLOY.md`](d
 
 Fluxo de ramos/PR, tag da versão final e contribuição por integrante: [`docs/FLUXO_GIT.md`](docs/FLUXO_GIT.md).
 
+Decisões de arquitetura e diagramas: [`docs/DECISOES_ARQUITETURA.md`](docs/DECISOES_ARQUITETURA.md) e
+[`docs/DIAGRAMAS.md`](docs/DIAGRAMAS.md).
+
 ## Privacidade (RNF07)
 Use apenas dados fictícios ou autorizados. Não versione arquivos `.env`.
+
+- **Anonimização (LGPD):** na tela do cliente, o ADMIN pode apagar nome, CPF/CNPJ, telefone, e-mail e observações
+  a pedido do titular (`POST /customers/:id/anonymize`). Veículos e histórico de OS são mantidos; o acesso do cliente
+  e os links de acompanhamento deixam de funcionar.
+- **Sessões:** trocar ou redefinir a senha encerra as outras sessões do funcionário; revogar ou gerar novo código
+  encerra as sessões abertas na área do cliente.
+- **Código de acesso:** 5 erros bloqueiam o acesso por 15 min. A tentativa é reservada no banco antes da conferência,
+  então requisições simultâneas não passam do limite.
+- **Seed:** em banco remoto, exige senha forte para o admin e não cria os dados de demonstração sem `SEED_DEMO=true`.
+
 Termo de autorização e roteiro da validação com a oficina: [`docs/extensao/`](docs/extensao/).

@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import Icon from '../components/Icon';
+import { LoadError, SkeletonPage } from '../components/Skeleton';
 import StatusBadge from '../components/StatusBadge';
 import { formatDate, formatKm } from '../lib/format';
 import type { VehicleHistory } from '../types';
@@ -11,11 +12,13 @@ export default function VehicleHistoryPage() {
   const [data, setData] = useState<VehicleHistory | null>(null);
   const [error, setError] = useState('');
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setError('');
     api<VehicleHistory>(`/vehicles/${id}/history`).then(setData).catch((e) => setError(errorMessage(e)));
   }, [id]);
+  useEffect(load, [load]);
 
-  if (!data) return error ? <p className="error">{error}</p> : <p className="loading">Carregando…</p>;
+  if (!data) return error ? <LoadError message={error} onRetry={load} /> : <SkeletonPage stats={4} cards={2} />;
   const { vehicle, orders } = data;
   const lastKm = orders.find((o) => o.mileageIn != null)?.mileageIn;
   const servicesCount = orders.reduce((n, o) => n + o.items.length, 0);
@@ -34,7 +37,7 @@ export default function VehicleHistoryPage() {
         <Link to={`/os?nova=1&veiculo=${vehicle.id}`} className="button primary"><Icon name="plus" /> Nova OS</Link>
       </div>
 
-      <div className="stats">
+      <div className="stats stagger">
         <div className="stat"><span className="stat-value">{orders.length}</span><span className="stat-label">ordens de serviço</span></div>
         <div className="stat"><span className="stat-value">{servicesCount}</span><span className="stat-label">serviços realizados</span></div>
         <div className="stat"><span className="stat-value">{orders[0] ? formatDate(orders[0].openedAt) : '—'}</span><span className="stat-label">última visita</span></div>
@@ -47,7 +50,7 @@ export default function VehicleHistoryPage() {
           <p>Este veículo ainda não possui ordens de serviço.</p>
         </div>
       ) : (
-        <ol className="timeline">
+        <ol className="timeline stagger">
           {orders.map((o) => (
             <li key={o.id}>
               <div className="card">

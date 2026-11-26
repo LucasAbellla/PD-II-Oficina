@@ -5,6 +5,8 @@ import { useFeedback } from '../components/Feedback';
 import Icon from '../components/Icon';
 import Modal from '../components/Modal';
 import OrderForm from '../components/OrderForm';
+import Presence from '../components/Presence';
+import { LoadError, SkeletonTable } from '../components/Skeleton';
 import StatusBadge from '../components/StatusBadge';
 import { useDebounce } from '../hooks/useDebounce';
 import { formatDate } from '../lib/format';
@@ -19,10 +21,12 @@ export default function OrdersPage() {
   const [summary, setSummary] = useState<StatusSummary | null>(null);
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
+  const [fetching, setFetching] = useState(false);
   const [newOrder, setNewOrder] = useState<{ vehicle?: Vehicle } | null>(null);
   const debounced = useDebounce(search.trim());
 
   const load = useCallback(async () => {
+    setFetching(true);
     try {
       const q = `${status ? `&status=${status}` : ''}${debounced ? `&search=${encodeURIComponent(debounced)}` : ''}`;
       const [list, counts] = await Promise.all([
@@ -31,8 +35,11 @@ export default function OrdersPage() {
       ]);
       setOrders(list.data);
       setSummary(counts);
+      setError('');
     } catch (e) {
       setError(errorMessage(e));
+    } finally {
+      setFetching(false);
     }
   }, [status, debounced]);
 
@@ -53,16 +60,19 @@ export default function OrdersPage() {
   return (
     <>
       <div className="page-header">
-        <h2>Ordens de serviço</h2>
+        <div>
+          <h2>Ordens de serviço</h2>
+          <p className="page-sub">Abra uma OS para registrar serviços e mudar o status.</p>
+        </div>
         <button className="primary" onClick={() => setNewOrder({})}><Icon name="plus" /> Nova OS</button>
       </div>
 
-      <div className="chips" role="tablist" aria-label="Filtrar por status">
-        <button role="tab" aria-selected={status === ''} className={`chip${status === '' ? ' active' : ''}`} onClick={() => setStatus('')}>
+      <div className="chips" role="group" aria-label="Filtrar por status">
+        <button aria-pressed={status === ''} className="chip" onClick={() => setStatus('')}>
           Todas <span className="chip-count">{total}</span>
         </button>
         {(Object.keys(STATUS_LABEL) as OrderStatus[]).map((s) => (
-          <button key={s} role="tab" aria-selected={status === s} className={`chip chip-${s.toLowerCase()}${status === s ? ' active' : ''}`} onClick={() => setStatus(s)}>
+          <button key={s} aria-pressed={status === s} className={`chip chip-${s.toLowerCase()}`} onClick={() => setStatus(s)}>
             {STATUS_LABEL[s]} <span className="chip-count">{summary?.[s] ?? 0}</span>
           </button>
         ))}
@@ -72,27 +82,27 @@ export default function OrdersPage() {
         <Icon name="search" />
         <input placeholder="Buscar por nº da OS, placa, cliente ou problema…" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
-      {error && <p className="error">{error}</p>}
+      {error && <LoadError message={error} onRetry={load} />}
 
-      {orders === null ? <p className="loading">Carregando…</p> : orders.length === 0 ? (
+      {orders === null ? (!error && <SkeletonTable cols={6} />) : orders.length === 0 ? (
         <div className="empty">
           <Icon name="clipboard" size={32} />
           <p>{search || status ? 'Nenhuma OS encontrada com esse filtro.' : 'Nenhuma ordem de serviço aberta ainda.'}</p>
           {!search && !status && <button className="primary" onClick={() => setNewOrder({})}><Icon name="plus" /> Abrir a primeira OS</button>}
         </div>
       ) : (
-        <div className="table-wrap">
+        <div className={`table-wrap${fetching ? ' is-fetching' : ''}`} aria-busy={fetching}>
           <table className="clickable">
-            <thead><tr><th>Nº</th><th>Veículo</th><th>Cliente</th><th>Problema</th><th>Status</th><th>Abertura</th></tr></thead>
+            <thead><tr><th>Nº</th><th>Veículo</th><th className="hide-sm">Cliente</th><th className="hide-sm">Problema</th><th>Status</th><th className="hide-sm">Abertura</th></tr></thead>
             <tbody>
               {orders.map((o) => (
                 <tr key={o.id} onClick={() => navigate(`/os/${o.id}`)}>
-                  <td><Link to={`/os/${o.id}`} onClick={(e) => e.stopPropagation()}>#{o.number}</Link></td>
+                  <td><Link to={`/os/${o.id}`} className="os-number" onClick={(e) => e.stopPropagation()}>#{o.number}</Link></td>
                   <td><span className="plate">{o.vehicle.plate}</span> {o.vehicle.model}</td>
-                  <td>{o.vehicle.customer.name}</td>
-                  <td className="truncate">{o.description}</td>
+                  <td className="hide-sm">{o.vehicle.customer.name}</td>
+                  <td className="truncate hide-sm">{o.description}</td>
                   <td><StatusBadge status={o.status} /></td>
-                  <td>{formatDate(o.openedAt)}</td>
+                  <td className="hide-sm">{formatDate(o.openedAt)}</td>
                 </tr>
               ))}
             </tbody>
@@ -100,7 +110,7 @@ export default function OrdersPage() {
         </div>
       )}
 
-      {newOrder && (
+      <Presence>{newOrder && (
         <Modal title="Nova ordem de serviço" onClose={() => setNewOrder(null)}>
           <OrderForm
             vehicle={newOrder.vehicle}
@@ -108,7 +118,7 @@ export default function OrdersPage() {
             onSaved={(o) => { toast(`OS #${o.number} aberta`); navigate(`/os/${o.id}`); }}
           />
         </Modal>
-      )}
+      )}</Presence>
     </>
   );
 }

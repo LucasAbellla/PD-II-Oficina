@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { clientApi, downloadPdf, errorMessage } from '../api/client';
 import Icon from '../components/Icon';
+import { LoadError, SkeletonPage } from '../components/Skeleton';
 import StatusBadge from '../components/StatusBadge';
 import StatusTimeline from '../components/StatusTimeline';
 import { formatDate } from '../lib/format';
 import type { ClientOrder, ClientVehicleDetail } from '../types';
 
-function OrderBlock({ order, onError }: { order: ClientOrder; onError: (m: string) => void }) {
+function OrderBlock({ order, onError, featured }: { order: ClientOrder; onError: (m: string) => void; featured?: boolean }) {
   const download = async () => {
     try {
       await downloadPdf(`/client/orders/${order.id}/invoice`, `nota-fiscal-OS${order.number}.pdf`, 'client');
@@ -17,12 +18,16 @@ function OrderBlock({ order, onError }: { order: ClientOrder; onError: (m: strin
   };
 
   return (
-    <div className="card">
-      <p>
-        <strong>OS #{order.number}</strong> <StatusBadge status={order.status} />{' '}
-        <span className="muted small">aberta em {formatDate(order.openedAt)}</span>
-      </p>
-      <p className="muted pre-line">Problema relatado: {order.description}</p>
+    <div className={`card${featured ? ' card-featured' : ''}`}>
+      <div className="status-hero">
+        <div>
+          <h3>OS #{order.number}</h3>
+          <span className="muted small">Aberta em {formatDate(order.openedAt)}</span>
+        </div>
+        <StatusBadge status={order.status} />
+      </div>
+      <span className="info-label">Problema relatado</span>
+      <p className="pre-line">{order.description}</p>
       <StatusTimeline status={order.status} events={order.timeline} />
 
       <span className="info-label">O que foi feito</span>
@@ -53,7 +58,7 @@ export default function ClientVehiclePage() {
     clientApi<ClientVehicleDetail>(`/client/vehicles/${id}`).then(setData).catch((e) => setError(errorMessage(e)));
   }, [id]);
 
-  if (!data) return error ? <p className="error">{error}</p> : <p className="loading">Carregando…</p>;
+  if (!data) return error ? <LoadError message={error} /> : <SkeletonPage cards={2} />;
   const [current, ...older] = data.orders;
 
   return (
@@ -67,13 +72,13 @@ export default function ClientVehiclePage() {
       {current && (
         <>
           <h3 className="section-title">Atendimento mais recente</h3>
-          <OrderBlock order={current} onError={setError} />
+          <OrderBlock order={current} onError={setError} featured />
         </>
       )}
       {older.length > 0 && (
         <>
           <h3 className="section-title">Histórico</h3>
-          {older.map((o) => <OrderBlock key={o.id} order={o} onError={setError} />)}
+          <div className="stagger">{older.map((o) => <OrderBlock key={o.id} order={o} onError={setError} />)}</div>
         </>
       )}
     </>

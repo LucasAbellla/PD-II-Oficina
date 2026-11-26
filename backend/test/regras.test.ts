@@ -59,7 +59,8 @@ describe('autenticação', () => {
     expect(errada.body.details[0].field).toBe('currentPassword');
 
     const ok = await user('PATCH', '/auth/me/password', { currentPassword: 'senha12345', newPassword: 'novaSenha123' });
-    expect(ok.status).toBe(204);
+    expect(ok.status).toBe(200);
+    expect(ok.body.token).toBeTypeOf('string');
     await expect(login(servidor.baseUrl, 'senha@teste.local', 'novaSenha123')).resolves.toBeTypeOf('function');
   });
 });

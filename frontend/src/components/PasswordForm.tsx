@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { api, errorMessage, fieldErrors } from '../api/client';
+import { api, errorMessage, fieldErrors, tokenStore } from '../api/client';
 
 /**
  * mode "change": o próprio usuário troca a senha (pede a senha atual).
@@ -25,7 +25,9 @@ export default function PasswordForm({ mode, userId, onSaved, onCancel }: Props)
     setBusy(true);
     try {
       if (mode === 'change') {
-        await api('/auth/me/password', { method: 'PATCH', body: { currentPassword: form.currentPassword, newPassword: form.newPassword } });
+        // As outras sessões são encerradas; esta continua com o token novo
+        const res = await api<{ token: string }>('/auth/me/password', { method: 'PATCH', body: { currentPassword: form.currentPassword, newPassword: form.newPassword } });
+        tokenStore.set(res.token);
       } else {
         await api(`/auth/users/${userId}/password`, { method: 'PUT', body: { password: form.newPassword } });
       }

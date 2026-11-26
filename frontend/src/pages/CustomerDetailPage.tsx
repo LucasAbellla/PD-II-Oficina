@@ -1,25 +1,32 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
+import { useAuth } from '../auth/AuthContext';
 import CustomerForm from '../components/CustomerForm';
 import { useFeedback } from '../components/Feedback';
 import Icon from '../components/Icon';
 import Modal from '../components/Modal';
+import Presence from '../components/Presence';
+import { LoadError, SkeletonPage } from '../components/Skeleton';
 import VehicleForm from '../components/VehicleForm';
+import { formatDate } from '../lib/format';
 import type { CustomerDetail } from '../types';
 
 export default function CustomerDetailPage() {
   const { id } = useParams();
   const [params, setParams] = useSearchParams();
   const { toast, confirm } = useFeedback();
+  const { user } = useAuth();
   const [customer, setCustomer] = useState<CustomerDetail | null>(null);
   const [modal, setModal] = useState<'edit' | 'vehicle' | null>(params.get('novoVeiculo') ? 'vehicle' : null);
   const [error, setError] = useState('');
   const [pin, setPin] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
 
   const load = useCallback(async () => {
     try {
       setCustomer(await api<CustomerDetail>(`/customers/${id}`));
+      setError('');
     } catch (e) {
       setError(errorMessage(e));
     }
@@ -31,12 +38,16 @@ export default function CustomerDetailPage() {
   }, [params, setParams]);
 
   const generatePin = async () => {
+    if (generating) return;
+    setGenerating(true);
     try {
       const res = await api<{ pin: string }>(`/customers/${id}/access-pin`, { method: 'POST' });
       setPin(res.pin);
       void load();
     } catch (e) {
       toast(errorMessage(e), { type: 'error' });
+    } finally {
+      setGenerating(false);
     }
   };
   const revokeAccess = async () => {
@@ -50,15 +61,36 @@ export default function CustomerDetailPage() {
     }
   };
 
-  if (!customer) return error ? <p className="error">{error}</p> : <p className="loading">Carregando…</p>;
+  const anonymize = async () => {
+    if (!(await confirm({
+      title: 'Anonimizar os dados do cliente?',
+      message: 'Nome, CPF/CNPJ, telefone, e-mail e observações serão apagados e o acesso do cliente e os links de acompanhamento deixam de funcionar. Veículos e histórico de OS são mantidos. Não é possível desfazer.',
+      confirmLabel: 'Anonimizar',
+      danger: true,
+    }))) return;
+    try {
+      setCustomer(await api<CustomerDetail>(`/customers/${id}/anonymize`, { method: 'POST' }));
+      toast('Dados pessoais do cliente removidos');
+    } catch (e) {
+      toast(errorMessage(e), { type: 'error' });
+    }
+  };
+
+  if (!customer) return error ? <LoadError message={error} onRetry={() => void load()} /> : <SkeletonPage cards={3} />;
 
   return (
     <>
       <Link to="/clientes" className="back-link"><Icon name="back" size={16} /> Clientes</Link>
       <div className="page-header">
         <h2>{customer.name}</h2>
-        <button className="secondary" onClick={() => setModal('edit')}><Icon name="edit" /> Editar dados</button>
+        {!customer.anonymizedAt && <button className="secondary" onClick={() => setModal('edit')}><Icon name="edit" /> Editar dados</button>}
       </div>
+      {customer.anonymizedAt && (
+        <div className="notice" role="status">
+          <Icon name="alert" />
+          <p>Dados pessoais removidos em {formatDate(customer.anonymizedAt)} a pedido do titular (LGPD). Veículos e histórico de OS foram mantidos.</p>
+        </div>
+      )}
 
       <div className="info-grid">
         <div className="card">
@@ -78,6 +110,7 @@ export default function CustomerDetailPage() {
       </div>
       {customer.notes && <div className="card"><span className="info-label">Observações</span><p className="pre-line">{customer.notes}</p></div>}
 
+      {!customer.anonymizedAt && <>
       <h3 className="section-title">Acesso do cliente</h3>
       <div className="card">
         <p className="muted">
@@ -87,10 +120,11 @@ export default function CustomerDetailPage() {
         </p>
         <div className="actions">
           {customer.access ? <span className="badge badge-completed">Acesso ativo</span> : <span className="badge">Sem código</span>}
-          <button className="primary" onClick={generatePin}><Icon name="key" size={16} /> {customer.access ? 'Gerar novo código' : 'Gerar código de acesso'}</button>
+          <button className="primary" onClick={generatePin} disabled={generating} aria-busy={generating}><Icon name="key" size={16} /> {customer.access ? 'Gerar novo código' : 'Gerar código de acesso'}</button>
           {customer.access && <button className="ghost-danger" onClick={revokeAccess}>Revogar acesso</button>}
         </div>
       </div>
+      </>}
 
       <div className="page-header">
         <h3 className="section-title">Veículos <span className="chip-count">{customer.vehicles.length}</span></h3>
@@ -103,7 +137,7 @@ export default function CustomerDetailPage() {
           <button className="primary" onClick={() => setModal('vehicle')}><Icon name="plus" /> Adicionar veículo</button>
         </div>
       ) : (
-        <div className="vehicle-cards">
+        <div className="vehicle-cards stagger">
           {customer.vehicles.map((v) => (
             <div className="card vehicle-card" key={v.id}>
               <span className="plate plate-lg">{v.plate}</span>
@@ -117,7 +151,19 @@ export default function CustomerDetailPage() {
         </div>
       )}
 
-      {pin && (
+      {user?.role === 'ADMIN' && !customer.anonymizedAt && (
+        <>
+          <h3 className="section-title">Privacidade (LGPD)</h3>
+          <div className="card">
+            <p className="muted">Se o cliente pedir a exclusão dos dados pessoais, anonimize o cadastro. O histórico de serviços dos veículos continua disponível para a oficina.</p>
+            <div className="actions">
+              <button className="ghost-danger" onClick={anonymize}>Anonimizar dados do cliente</button>
+            </div>
+          </div>
+        </>
+      )}
+
+      <Presence>{pin && (
         <Modal title="Código de acesso do cliente" onClose={() => setPin(null)} small>
           <p>Informe este código a <strong>{customer.name}</strong>. Por segurança, ele não será exibido novamente.</p>
           <p className="pin-code">{pin}</p>
@@ -126,14 +172,14 @@ export default function CustomerDetailPage() {
             <button className="primary" onClick={() => setPin(null)}>Concluir</button>
           </div>
         </Modal>
-      )}
-      {modal === 'edit' && (
+      )}</Presence>
+      <Presence>{modal === 'edit' && (
         <Modal title="Editar cliente" onClose={() => setModal(null)}>
           <CustomerForm customer={customer} onCancel={() => setModal(null)}
             onSaved={() => { setModal(null); toast('Dados do cliente atualizados'); void load(); }} />
         </Modal>
-      )}
-      {modal === 'vehicle' && (
+      )}</Presence>
+      <Presence>{modal === 'vehicle' && (
         <Modal title={`Novo veículo de ${customer.name}`} onClose={() => setModal(null)}>
           <VehicleForm owner={customer} onCancel={() => setModal(null)}
             onSaved={(v) => {
@@ -142,7 +188,7 @@ export default function CustomerDetailPage() {
               toast(`Veículo ${v.plate} cadastrado`, { action: { label: 'Abrir OS', to: `/os?nova=1&veiculo=${v.id}` } });
             }} />
         </Modal>
-      )}
+      )}</Presence>
     </>
   );
 }

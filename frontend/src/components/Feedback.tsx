@@ -2,8 +2,9 @@ import { createContext, useCallback, useContext, useRef, useState, type ReactNod
 import { useNavigate } from 'react-router-dom';
 import Icon from './Icon';
 import Modal from './Modal';
+import Presence from './Presence';
 
-interface Toast { id: number; message: string; type: 'success' | 'error'; action?: { label: string; to: string } }
+interface Toast { id: number; message: string; type: 'success' | 'error'; action?: { label: string; to: string }; leaving?: boolean }
 interface ConfirmOptions { title: string; message?: string; confirmLabel?: string; danger?: boolean }
 
 interface FeedbackState {
@@ -21,7 +22,9 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
   const resolver = useRef<(ok: boolean) => void>();
   const nextId = useRef(0);
 
-  const dismiss = (id: number) => setToasts((list) => list.filter((t) => t.id !== id));
+  // Marca a notificação como saindo; ela é removida quando a animação termina
+  const dismiss = (id: number) => setToasts((list) => list.map((t) => (t.id === id ? { ...t, leaving: true } : t)));
+  const remove = (id: number) => setToasts((list) => list.filter((t) => t.id !== id));
 
   const toast = useCallback<FeedbackState['toast']>((message, opts = {}) => {
     const id = ++nextId.current;
@@ -42,9 +45,10 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
   return (
     <FeedbackContext.Provider value={{ toast, confirm }}>
       {children}
-      <div className="toasts" role="status" aria-live="polite">
+      <div className="toasts" aria-live="polite">
         {toasts.map((t) => (
-          <div key={t.id} className={`toast toast-${t.type}`}>
+          <div key={t.id} className={`toast toast-${t.type}${t.leaving ? ' leaving' : ''}`} role={t.type === 'error' ? 'alert' : 'status'}
+            onAnimationEnd={(e) => t.leaving && e.target === e.currentTarget && remove(t.id)}>
             <Icon name={t.type === 'success' ? 'check' : 'x'} />
             <span>{t.message}</span>
             {t.action && (
@@ -56,17 +60,17 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
           </div>
         ))}
       </div>
-      {pending && (
+      <Presence>{pending && (
         <Modal title={pending.title} onClose={() => answer(false)} small>
           {pending.message && <p className="muted">{pending.message}</p>}
           <div className="modal-actions">
-            <button type="button" className="secondary" onClick={() => answer(false)}>Voltar</button>
+            <button type="button" className="secondary" onClick={() => answer(false)} data-autofocus={pending.danger || undefined}>Voltar</button>
             <button type="button" className={pending.danger ? 'danger primary' : 'primary'} onClick={() => answer(true)}>
               {pending.confirmLabel ?? 'Confirmar'}
             </button>
           </div>
         </Modal>
-      )}
+      )}</Presence>
     </FeedbackContext.Provider>
   );
 }

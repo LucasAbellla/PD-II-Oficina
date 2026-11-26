@@ -8,13 +8,14 @@ const FLOW: OrderStatus[] = ['OPEN', 'IN_PROGRESS', 'COMPLETED', 'DELIVERED'];
 export default function StatusTimeline({ status, events }: { status: OrderStatus; events: { status: OrderStatus; at: string }[] }) {
   const when = new Map(events.map((e) => [e.status, e.at]));
   if (status === 'CANCELED') {
-    return <div className="stepper-canceled">Esta ordem de serviço foi cancelada{when.has('CANCELED') ? ` em ${formatDateTime(when.get('CANCELED')!)}` : ''}.</div>;
+    return <div className="stepper-canceled"><Icon name="alert" size={16} /> Esta ordem de serviço foi cancelada{when.has('CANCELED') ? ` em ${formatDateTime(when.get('CANCELED')!)}` : ''}.</div>;
   }
   const current = status === 'DELIVERED' ? FLOW.length : FLOW.indexOf(status);
   return (
     <ol className="stepper">
       {FLOW.map((s, i) => (
-        <li key={s} className={i < current ? 'done' : i === current ? 'current' : ''}>
+        <li key={s} className={i < current ? 'done' : i === current ? 'current' : ''} style={{ ['--i' as string]: i }}
+          aria-current={i === current ? 'step' : undefined}>
           <span className="step-dot">{i < current ? <Icon name="check" size={14} /> : i + 1}</span>
           <span className="step-label">{STATUS_LABEL[s]}</span>
           <small className="step-date">{when.has(s) ? formatDateTime(when.get(s)!) : 'Aguardando'}</small>
