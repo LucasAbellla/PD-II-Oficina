@@ -4,7 +4,7 @@
 **Instituição:** Centro Universitário Senac-RS (Unisenac) · ADS · Projeto de Desenvolvimento II (2026/2)
 **Docente orientador:** Prof. Dr. Roberto Zanoni
 **Equipe:** Cauê Grazziotin Oliveira, Lucas Alexandre Abella Macedo e Mateus Gularte Ferreira
-**Parceiro:** JMG Autopeças · Av. Sertório, 1090 · Porto Alegre/RS
+**Parceiro:** JMG Autopeças · Av. Saturnino de Brito, 1090 · Porto Alegre/RS
 
 ## Sobre a atividade
 
